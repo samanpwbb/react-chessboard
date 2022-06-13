@@ -25,8 +25,7 @@ export function Square({ square, squareColor, setSquares, squareHasPremove, chil
     onPieceDrop,
     onRightClickDown,
     onRightClickUp,
-    onSquareClick,
-    waitingForAnimation
+    onSquareClick
   } = useChessboard();
 
   const [{ isOver }, drop] = useDrop(
@@ -37,7 +36,7 @@ export function Square({ square, squareColor, setSquares, squareHasPremove, chil
         isOver: !!monitor.isOver()
       })
     }),
-    [square, currentPosition, onPieceDrop, waitingForAnimation, lastPieceColour]
+    [square, currentPosition, onPieceDrop, lastPieceColour]
   );
 
   useEffect(() => {

@@ -33,7 +33,8 @@
     "react-dnd": "^14.0.3",
     "react-dnd-html5-backend": "^14.0.1",
     "react-dnd-multi-backend": "^6.0.2",
-    "react-dnd-touch-backend": "^14.1.0"
+    "react-dnd-touch-backend": "^14.1.0",
+    "react-spring": "^9.4.5"
   },
   "peerDependencies": {
     "react": "^16.14.0 || ^17.0.2 || ^18.0.1",

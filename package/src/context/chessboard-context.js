@@ -1,4 +1,4 @@
-import React, { forwardRef, useContext, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import React, { useCallback, forwardRef, useContext, useEffect, useImperativeHandle, useRef, useState } from 'react';
 
 import { defaultPieces } from '../media/pieces';
 import { convertPositionToObject, getPositionDifferences, isDifferentFromStart } from '../functions';
@@ -21,7 +21,6 @@ export const useChessboard = () => useContext(ChessboardContext);
 export const ChessboardProvider = forwardRef(
   (
     {
-      animationDuration,
       areArrowsAllowed,
       arePiecesDraggable,
       arePremovesAllowed,
@@ -83,11 +82,8 @@ export const ChessboardProvider = forwardRef(
     // whether the last move was a manual drop or not
     const [manualDrop, setManualDrop] = useState(false);
 
-    // the most recent timeout whilst waiting for animation to complete
-    const [previousTimeout, setPreviousTimeout] = useState(undefined);
-
     // if currently waiting for an animation to finish
-    const [waitingForAnimation, setWaitingForAnimation] = useState(false);
+    const [transitioning, setTransitioning] = useState(false);
 
     // open clearPremoves() to allow user to call on undo/reset/whenever
     useImperativeHandle(ref, () => ({
@@ -110,18 +106,14 @@ export const ChessboardProvider = forwardRef(
 
       // external move has come in before animation is over
       // cancel animation and immediately update position
-      if (waitingForAnimation) {
-        setCurrentPosition(newPosition);
-        setWaitingForAnimation(false);
+      if (transitioning) {
+        // setCurrentPosition(newPosition);
         arePremovesAllowed && attemptPremove(newPieceColour);
-        if (previousTimeout) {
-          clearTimeout(previousTimeout);
-        }
+        setTransitioning(false);
       } else {
         // move was made using drag and drop
         if (manualDrop) {
-          setCurrentPosition(newPosition);
-          setWaitingForAnimation(false);
+          // setCurrentPosition(newPosition);
           arePremovesAllowed && attemptPremove(newPieceColour);
         } else {
           // move was made by external position change
@@ -134,16 +126,12 @@ export const ChessboardProvider = forwardRef(
             // position === start, likely a board reset
             setLastPieceColour(undefined);
           }
-          setPositionDifferences(differences);
 
+          setTransitioning(true);
+          console.log('set differences');
+          setPositionDifferences(differences);
           // animate external move
-          setWaitingForAnimation(true);
-          const newTimeout = setTimeout(() => {
-            setCurrentPosition(newPosition);
-            setWaitingForAnimation(false);
-            arePremovesAllowed && attemptPremove(newPieceColour);
-          }, animationDuration);
-          setPreviousTimeout(newTimeout);
+          arePremovesAllowed && attemptPremove(newPieceColour);
         }
       }
 
@@ -153,11 +141,6 @@ export const ChessboardProvider = forwardRef(
       getPositionObject(newPosition);
       // clear arrows
       clearArrows();
-
-      // clear timeout on unmount
-      return () => {
-        clearTimeout(previousTimeout);
-      };
     }, [position]);
 
     // handle external arrows change
@@ -177,7 +160,7 @@ export const ChessboardProvider = forwardRef(
       // if second move is made for same colour, or there are still premoves queued, then this move needs to be added to premove queue instead of played
       // premoves length check for colour is added in because white could make 3 premoves, and then black responds to the first move (changing the last piece colour) and then white pre-moves again
       if (
-        (arePremovesAllowed && waitingForAnimation) ||
+        (arePremovesAllowed && transitioning) ||
         (arePremovesAllowed &&
           (lastPieceColour === piece[0] || premovesRef.current.filter((p) => p.piece[0] === piece[0]).length > 0))
       ) {
@@ -189,7 +172,7 @@ export const ChessboardProvider = forwardRef(
       }
 
       // if transitioning, don't allow new drop
-      if (!arePremovesAllowed && waitingForAnimation) return;
+      if (!arePremovesAllowed && transitioning) return;
 
       const newOnDropPosition = { ...currentPosition };
 
@@ -213,7 +196,8 @@ export const ChessboardProvider = forwardRef(
 
         // add piece in new position
         newOnDropPosition[targetSq] = piece;
-        setCurrentPosition(newOnDropPosition);
+
+        // setCurrentPosition(newOnDropPosition);
       }
 
       // inform latest position information
@@ -292,10 +276,23 @@ export const ChessboardProvider = forwardRef(
       setArrows([]);
     }
 
+    const startTransition = useCallback(() => {
+      setTransitioning(true);
+    }, []);
+
+    const endTransition = useCallback(
+      (id) => {
+        console.log('end transition');
+        setTransitioning(false);
+        const newPosition = convertPositionToObject(position);
+        setCurrentPosition(newPosition);
+      },
+      [position]
+    );
+
     return (
       <ChessboardContext.Provider
         value={{
-          animationDuration,
           arePiecesDraggable,
           arePremovesAllowed,
           boardOrientation,
@@ -341,7 +338,10 @@ export const ChessboardProvider = forwardRef(
           setChessPieces,
           setCurrentPosition,
           setManualDrop,
-          waitingForAnimation
+          transitioning,
+
+          startTransition,
+          endTransition
         }}
       >
         {children}

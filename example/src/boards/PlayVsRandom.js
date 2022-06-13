@@ -52,7 +52,7 @@ export default function PlayVsRandom({ boardWidth }) {
     <div>
       <Chessboard
         id="PlayVsRandom"
-        animationDuration={200}
+        animationDuration={400}
         boardOrientation={boardOrientation}
         boardWidth={boardWidth}
         customArrows={arrows}

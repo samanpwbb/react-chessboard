@@ -1,12 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { useDrag } from 'react-dnd';
 import { getEmptyImage } from 'react-dnd-html5-backend';
+import { useSpring, config, animated } from 'react-spring';
 
 import { useChessboard } from '../context/chessboard-context';
 
+function getSquareCoordinates(squares, sourceSquare, targetSquare) {
+  return {
+    sourceSq: squares[sourceSquare],
+    targetSq: squares[targetSquare]
+  };
+}
+
 export function Piece({ piece, square, squares, isPremovedPiece = false }) {
   const {
-    animationDuration,
     arePiecesDraggable,
     arePremovesAllowed,
     boardWidth,
@@ -19,16 +26,9 @@ export function Piece({ piece, square, squares, isPremovedPiece = false }) {
     chessPieces,
     dropTarget,
     positionDifferences,
-    waitingForAnimation,
+    endTransition,
     currentPosition
   } = useChessboard();
-
-  const [pieceStyle, setPieceStyle] = useState({
-    opacity: 1,
-    zIndex: 5,
-    touchAction: 'none',
-    cursor: arePiecesDraggable && isDraggablePiece({ piece, sourceSquare: square }) ? '-webkit-grab' : 'default'
-  });
 
   const [{ canDrag, isDragging }, drag, dragPreview] = useDrag(
     () => ({
@@ -51,97 +51,75 @@ export function Piece({ piece, square, squares, isPremovedPiece = false }) {
     dragPreview(getEmptyImage(), { captureDraggingState: true });
   }, []);
 
-  // hide piece on drag
-  useEffect(() => {
-    setPieceStyle((oldPieceStyle) => ({
-      ...oldPieceStyle,
-      opacity: isDragging ? 0 : 1
-    }));
-  }, [isDragging]);
-
   // hide piece on matching premoves
-  useEffect(() => {
+  const isPremoved = useMemo(() => {
     // if premoves aren't allowed, don't waste time on calculations
-    if (!arePremovesAllowed) return;
+    if (!arePremovesAllowed) return false;
 
-    let hidePiece = false;
     // side effect: if piece moves into pre-moved square, its hidden
-
     // if there are any premove targets on this square, hide the piece underneath
-    if (!isPremovedPiece && premoves.find((p) => p.targetSq === square)) hidePiece = true;
+    if (!isPremovedPiece && premoves.find((p) => p.targetSq === square)) return true;
 
     // if sourceSq === sq and piece matches then this piece has been pre-moved elsewhere?
-    if (premoves.find((p) => p.sourceSq === square && p.piece === piece)) hidePiece = true;
+    if (premoves.find((p) => p.sourceSq === square && p.piece === piece)) return true;
 
     // TODO: If a premoved piece returns to a premoved square, it will hide (e1, e2, e1)
-
-    setPieceStyle((oldPieceStyle) => ({
-      ...oldPieceStyle,
-      display: hidePiece ? 'none' : 'unset'
-    }));
-  }, [currentPosition, premoves]);
+    return false;
+  }, [arePremovesAllowed, isPremovedPiece, premoves]);
 
   // new move has come in
   // if waiting for animation, then animation has started and we can perform animation
   // we need to head towards where we need to go, we are the source, we are heading towards the target
-  useEffect(() => {
+  const { transform, zIndex } = useMemo(() => {
+    const defaults = {
+      zIndex: 5,
+      transform: 'translate(0px, 0px)'
+    };
+
     const removedPiece = positionDifferences.removed?.[square];
     // return as null and not loaded yet
-    if (!positionDifferences.added) return;
+    if (!positionDifferences.added) return defaults;
+
     // check if piece matches or if removed piece was a pawn and new square is on 1st or 8th rank (promotion)
     const newSquare = Object.entries(positionDifferences.added).find(
       ([s, p]) => p === removedPiece || (removedPiece?.[1] === 'P' && (s[1] === '1' || s[1] === '8'))
     );
     // we can perform animation if our square was in removed, AND the matching piece is in added AND this isn't a premoved piece
-    if (waitingForAnimation && removedPiece && newSquare && !isPremovedPiece) {
-      const { sourceSq, targetSq } = getSquareCoordinates(square, newSquare[0]);
+    if (removedPiece && newSquare && !isPremovedPiece) {
+      const { sourceSq, targetSq } = getSquareCoordinates(squares, square, newSquare[0]);
       if (sourceSq && targetSq) {
-        setPieceStyle((oldPieceStyle) => ({
-          ...oldPieceStyle,
+        return {
           transform: `translate(${targetSq.x - sourceSq.x}px, ${targetSq.y - sourceSq.y}px)`,
-          transition: `transform ${animationDuration}ms`,
           zIndex: 6
-        }));
+        };
       }
     }
+
+    return defaults;
   }, [positionDifferences]);
 
-  // translate to their own positions (repaint on undo)
-  useEffect(() => {
-    const { sourceSq } = getSingleSquareCoordinates(square);
-    if (sourceSq) {
-      setPieceStyle((oldPieceStyle) => ({
-        ...oldPieceStyle,
-        transform: `translate(${0}px, ${0}px)`,
-        transition: `transform ${0}ms`
-      }));
+  const style = {
+    zIndex,
+    touchAction: 'none',
+    opacity: isDragging ? 0 : 1,
+    display: isPremoved ? 'none' : 'unset',
+    cursor: arePiecesDraggable && isDraggablePiece({ piece, sourceSquare: square }) ? '-webkit-grab' : 'default'
+  };
+
+  const props = useSpring({
+    transform,
+    config: config.wobbly,
+    onRest: () => {
+      console.log('end');
+      endTransition();
     }
-  }, [currentPosition]);
-
-  // update is piece draggable
-  useEffect(() => {
-    setPieceStyle((oldPieceStyle) => ({
-      ...oldPieceStyle,
-      cursor: arePiecesDraggable && isDraggablePiece({ piece, sourceSquare: square }) ? '-webkit-grab' : 'default'
-    }));
-  }, [square, currentPosition, arePiecesDraggable]);
-
-  function getSingleSquareCoordinates(square) {
-    return { sourceSq: squares[square] };
-  }
-
-  function getSquareCoordinates(sourceSquare, targetSquare) {
-    return {
-      sourceSq: squares[sourceSquare],
-      targetSq: squares[targetSquare]
-    };
-  }
+  });
 
   return (
-    <div
+    <animated.div
       ref={arePiecesDraggable ? (canDrag ? drag : null) : null}
       onClick={() => onPieceClick(piece)}
-      style={pieceStyle}
+      style={{ transform: props.transform }}
     >
       {typeof chessPieces[piece] === 'function' ? (
         chessPieces[piece]({
@@ -156,6 +134,6 @@ export function Piece({ piece, square, squares, isPremovedPiece = false }) {
           <g>{chessPieces[piece]}</g>
         </svg>
       )}
-    </div>
+    </animated.div>
   );
 }
