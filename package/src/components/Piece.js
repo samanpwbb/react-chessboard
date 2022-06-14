@@ -12,21 +12,20 @@ function getSquareCoordinates(squares, sourceSquare, targetSquare) {
   };
 }
 
-export function Piece({ piece, square, squares, isPremovedPiece = false }) {
+export function Piece({ piece, square, squares }) {
   const {
     arePiecesDraggable,
-    arePremovesAllowed,
     boardWidth,
     id,
     isDraggablePiece,
     onPieceClick,
+    completeMove,
     onPieceDragBegin,
     onPieceDragEnd,
-    premoves,
     chessPieces,
     dropTarget,
     positionDifferences,
-    endTransition,
+    setTransitioning,
     currentPosition
   } = useChessboard();
 
@@ -51,22 +50,6 @@ export function Piece({ piece, square, squares, isPremovedPiece = false }) {
     dragPreview(getEmptyImage(), { captureDraggingState: true });
   }, []);
 
-  // hide piece on matching premoves
-  const isPremoved = useMemo(() => {
-    // if premoves aren't allowed, don't waste time on calculations
-    if (!arePremovesAllowed) return false;
-
-    // side effect: if piece moves into pre-moved square, its hidden
-    // if there are any premove targets on this square, hide the piece underneath
-    if (!isPremovedPiece && premoves.find((p) => p.targetSq === square)) return true;
-
-    // if sourceSq === sq and piece matches then this piece has been pre-moved elsewhere?
-    if (premoves.find((p) => p.sourceSq === square && p.piece === piece)) return true;
-
-    // TODO: If a premoved piece returns to a premoved square, it will hide (e1, e2, e1)
-    return false;
-  }, [arePremovesAllowed, isPremovedPiece, premoves]);
-
   // new move has come in
   // if waiting for animation, then animation has started and we can perform animation
   // we need to head towards where we need to go, we are the source, we are heading towards the target
@@ -81,37 +64,36 @@ export function Piece({ piece, square, squares, isPremovedPiece = false }) {
     if (!positionDifferences.added) return defaults;
 
     // check if piece matches or if removed piece was a pawn and new square is on 1st or 8th rank (promotion)
-    const newSquare = Object.entries(positionDifferences.added).find(
-      ([s, p]) => p === removedPiece || (removedPiece?.[1] === 'P' && (s[1] === '1' || s[1] === '8'))
-    );
-    // we can perform animation if our square was in removed, AND the matching piece is in added AND this isn't a premoved piece
-    if (removedPiece && newSquare && !isPremovedPiece) {
+    const newSquare = Object.entries(positionDifferences.added).find(([s, p]) => {
+      const isPromotion = removedPiece?.[1] === 'P' && (s[1] === '1' || s[1] === '8');
+      return p === removedPiece || isPromotion;
+    });
+
+    // perform animation if the piece moved.
+    if (newSquare) {
       const { sourceSq, targetSq } = getSquareCoordinates(squares, square, newSquare[0]);
-      if (sourceSq && targetSq) {
-        return {
-          transform: `translate(${targetSq.x - sourceSq.x}px, ${targetSq.y - sourceSq.y}px)`,
-          zIndex: 6
-        };
-      }
+      return {
+        transform: `translate(${targetSq.x - sourceSq.x}px, ${targetSq.y - sourceSq.y}px)`,
+        zIndex: 6
+      };
     }
 
     return defaults;
-  }, [positionDifferences]);
+  }, [positionDifferences, setTransitioning]);
 
   const style = {
     zIndex,
     touchAction: 'none',
     opacity: isDragging ? 0 : 1,
-    display: isPremoved ? 'none' : 'unset',
     cursor: arePiecesDraggable && isDraggablePiece({ piece, sourceSquare: square }) ? '-webkit-grab' : 'default'
   };
 
   const props = useSpring({
     transform,
-    config: config.wobbly,
+    immediate: false,
+    config: config.molasses,
     onRest: () => {
-      console.log('end');
-      endTransition();
+      completeMove(currentPosition);
     }
   });
 
@@ -119,7 +101,7 @@ export function Piece({ piece, square, squares, isPremovedPiece = false }) {
     <animated.div
       ref={arePiecesDraggable ? (canDrag ? drag : null) : null}
       onClick={() => onPieceClick(piece)}
-      style={{ transform: props.transform }}
+      style={{ ...style, transform: props.transform }}
     >
       {typeof chessPieces[piece] === 'function' ? (
         chessPieces[piece]({

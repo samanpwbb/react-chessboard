@@ -117,10 +117,6 @@ interface ChessBoardProps {
    */
   boardWidth?: number;
   /**
-   * If premoves are allowed, whether or not to clear the premove queue on right click.
-   */
-  clearPremovesOnRightClick?: boolean;
-  /**
    * Array of custom arrows to draw on the board. Each arrow within the array must be an array of length 2 with strings denoting the from and to square to draw the arrow e.g. [ ['a3', 'a5'], ['g1', 'f3'] ].
    */
   customArrows?: string[][];
@@ -213,9 +209,10 @@ interface ChessBoardProps {
    */
   onSquareClick?: (square: Square) => any;
   /**
-   * User function that is run when a square is right clicked.
+   * User function that is run when a move completes.
    */
-  onSquareRightClick?: (square: Square) => any;
+  onMoveComplete?: () => any;
+
   /**
    * FEN string or position object notating where the chess pieces are on the board. Start position can also be notated with the string: 'start'.
    */

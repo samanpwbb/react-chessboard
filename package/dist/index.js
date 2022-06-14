@@ -26,8 +26,8 @@ function _interopNamespace(e) {
   return Object.freeze(n);
 }
 
-var React__default = /*#__PURE__*/_interopDefaultLegacy(React);
 var React__namespace = /*#__PURE__*/_interopNamespace(React);
+var React__default = /*#__PURE__*/_interopDefaultLegacy(React);
 
 /**
  * Create the React Context
@@ -8799,1280 +8799,6 @@ var HTML5toTouch = {
   }]
 };
 
-const COLUMNS = 'abcdefgh'.split('');
-const chessboardDefaultProps = {
-  animationDuration: 300,
-  areArrowsAllowed: true,
-  arePiecesDraggable: true,
-  arePremovesAllowed: false,
-  boardOrientation: 'white',
-  boardWidth: 560,
-  clearPremovesOnRightClick: true,
-  customArrows: [],
-  customArrowColor: 'rgb(255,170,0)',
-  customBoardStyle: {},
-  customDarkSquareStyle: {
-    backgroundColor: '#B58863'
-  },
-  customDndBackend: undefined,
-  customDndBackendOptions: undefined,
-  customDropSquareStyle: {
-    boxShadow: 'inset 0 0 1px 6px rgba(255,255,255,0.75)'
-  },
-  customLightSquareStyle: {
-    backgroundColor: '#F0D9B5'
-  },
-  customPieces: {},
-  customPremoveDarkSquareStyle: {
-    backgroundColor: '#A42323'
-  },
-  customPremoveLightSquareStyle: {
-    backgroundColor: '#BD2828'
-  },
-  customSquareStyles: {},
-  dropOffBoardAction: 'snapback',
-  id: 0,
-  isDraggablePiece: () => true,
-  getPositionObject: () => {},
-  onDragOverSquare: () => {},
-  onMouseOutSquare: () => {},
-  onMouseOverSquare: () => {},
-  onPieceClick: () => {},
-  onPieceDragBegin: () => {},
-  onPieceDragEnd: () => {},
-  onPieceDrop: () => true,
-  onSquareClick: () => {},
-  onSquareRightClick: () => {},
-  position: 'start',
-  showBoardNotation: true,
-  // showSparePieces: false,
-  snapToCursor: true
-};
-
-const startPositionObject = {
-  a8: 'bR',
-  b8: 'bN',
-  c8: 'bB',
-  d8: 'bQ',
-  e8: 'bK',
-  f8: 'bB',
-  g8: 'bN',
-  h8: 'bR',
-  a7: 'bP',
-  b7: 'bP',
-  c7: 'bP',
-  d7: 'bP',
-  e7: 'bP',
-  f7: 'bP',
-  g7: 'bP',
-  h7: 'bP',
-  a2: 'wP',
-  b2: 'wP',
-  c2: 'wP',
-  d2: 'wP',
-  e2: 'wP',
-  f2: 'wP',
-  g2: 'wP',
-  h2: 'wP',
-  a1: 'wR',
-  b1: 'wN',
-  c1: 'wB',
-  d1: 'wQ',
-  e1: 'wK',
-  f1: 'wB',
-  g1: 'wN',
-  h1: 'wR'
-};
-const whiteColumnValues = {
-  a: 0,
-  b: 1,
-  c: 2,
-  d: 3,
-  e: 4,
-  f: 5,
-  g: 6,
-  h: 7
-};
-const blackColumnValues = {
-  a: 7,
-  b: 6,
-  c: 5,
-  d: 4,
-  e: 3,
-  f: 2,
-  g: 1,
-  h: 0
-};
-const whiteRows = [7, 6, 5, 4, 3, 2, 1, 0];
-const blackRows = [0, 1, 2, 3, 4, 5, 6, 7];
-const getRelativeCoords = (boardOrientation, boardWidth, square) => {
-  const squareWidth = boardWidth / 8;
-  const columns = boardOrientation === 'white' ? whiteColumnValues : blackColumnValues;
-  const rows = boardOrientation === 'white' ? whiteRows : blackRows;
-  const x = columns[square[0]] * squareWidth + squareWidth / 2;
-  const y = rows[square[1] - 1] * squareWidth + squareWidth / 2;
-  return {
-    x,
-    y
-  };
-};
-const isDifferentFromStart = newPosition => {
-  let isDifferent = false;
-  Object.keys(startPositionObject).forEach(square => {
-    if (newPosition[square] !== startPositionObject[square]) isDifferent = true;
-  });
-  Object.keys(newPosition).forEach(square => {
-    if (startPositionObject[square] !== newPosition[square]) isDifferent = true;
-  });
-  return isDifferent;
-};
-const getPositionDifferences = (currentPosition, newPosition) => {
-  const difference = {
-    removed: {},
-    added: {}
-  }; // removed from current
-
-  Object.keys(currentPosition).forEach(square => {
-    if (newPosition[square] !== currentPosition[square]) difference.removed[square] = currentPosition[square];
-  }); // added from new
-
-  Object.keys(newPosition).forEach(square => {
-    if (currentPosition[square] !== newPosition[square]) difference.added[square] = newPosition[square];
-  });
-  return difference;
-};
-
-function isString(s) {
-  return typeof s === 'string';
-}
-
-function convertPositionToObject(position) {
-  if (position === 'start') return fenToObj('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR');
-  if (validFen(position)) return fenToObj(position);
-  if (validPositionObject(position)) return position;
-  return {};
-}
-function fenToObj(fen) {
-  if (!validFen(fen)) return false; // cut off any move, castling, etc info from the end. we're only interested in position information
-
-  fen = fen.replace(/ .+$/, '');
-  const rows = fen.split('/');
-  const position = {};
-  let currentRow = 8;
-
-  for (let i = 0; i < 8; i++) {
-    const row = rows[i].split('');
-    let colIdx = 0; // loop through each character in the FEN section
-
-    for (let j = 0; j < row.length; j++) {
-      // number / empty squares
-      if (row[j].search(/[1-8]/) !== -1) {
-        const numEmptySquares = parseInt(row[j], 10);
-        colIdx = colIdx + numEmptySquares;
-      } else {
-        // piece
-        const square = COLUMNS[colIdx] + currentRow;
-        position[square] = fenToPieceCode(row[j]);
-        colIdx = colIdx + 1;
-      }
-    }
-
-    currentRow = currentRow - 1;
-  }
-
-  return position;
-}
-
-function expandFenEmptySquares(fen) {
-  return fen.replace(/8/g, '11111111').replace(/7/g, '1111111').replace(/6/g, '111111').replace(/5/g, '11111').replace(/4/g, '1111').replace(/3/g, '111').replace(/2/g, '11');
-}
-
-function validFen(fen) {
-  if (!isString(fen)) return false; // cut off any move, castling, etc info from the end. we're only interested in position information
-
-  fen = fen.replace(/ .+$/, ''); // expand the empty square numbers to just 1s
-
-  fen = expandFenEmptySquares(fen); // FEN should be 8 sections separated by slashes
-
-  const chunks = fen.split('/');
-  if (chunks.length !== 8) return false; // check each section
-
-  for (let i = 0; i < 8; i++) {
-    if (chunks[i].length !== 8 || chunks[i].search(/[^kqrnbpKQRNBP1]/) !== -1) {
-      return false;
-    }
-  }
-
-  return true;
-} // convert FEN piece code to bP, wK, etc
-
-function fenToPieceCode(piece) {
-  // black piece
-  if (piece.toLowerCase() === piece) {
-    return 'b' + piece.toUpperCase();
-  } // white piece
-
-
-  return 'w' + piece.toUpperCase();
-}
-
-function validSquare(square) {
-  return isString(square) && square.search(/^[a-h][1-8]$/) !== -1;
-}
-
-function validPieceCode(code) {
-  return isString(code) && code.search(/^[bw][KQRNBP]$/) !== -1;
-}
-
-function validPositionObject(pos) {
-  if (pos === null || typeof pos !== 'object') return false;
-
-  for (const i in pos) {
-    if (!pos[i]) continue;
-
-    if (!validSquare(i) || !validPieceCode(pos[i])) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-const defaultPieces = {
-  wP: /*#__PURE__*/jsxRuntime.jsx("svg", {
-    xmlns: "http://www.w3.org/2000/svg",
-    version: "1.1",
-    width: "45",
-    height: "45",
-    children: /*#__PURE__*/jsxRuntime.jsx("path", {
-      d: "m 22.5,9 c -2.21,0 -4,1.79 -4,4 0,0.89 0.29,1.71 0.78,2.38 C 17.33,16.5 16,18.59 16,21 c 0,2.03 0.94,3.84 2.41,5.03 C 15.41,27.09 11,31.58 11,39.5 H 34 C 34,31.58 29.59,27.09 26.59,26.03 28.06,24.84 29,23.03 29,21 29,18.59 27.67,16.5 25.72,15.38 26.21,14.71 26.5,13.89 26.5,13 c 0,-2.21 -1.79,-4 -4,-4 z",
-      style: {
-        opacity: '1',
-        fill: '#ffffff',
-        fillOpacity: '1',
-        fillRule: 'nonzero',
-        stroke: '#000000',
-        strokeWidth: '1.5',
-        strokeLinecap: 'round',
-        strokeLinejoin: 'miter',
-        strokeMiterlimit: '4',
-        strokeDasharray: 'none',
-        strokeOpacity: '1'
-      }
-    })
-  }),
-  wR: /*#__PURE__*/jsxRuntime.jsx("svg", {
-    xmlns: "http://www.w3.org/2000/svg",
-    version: "1.1",
-    width: "45",
-    height: "45",
-    children: /*#__PURE__*/jsxRuntime.jsxs("g", {
-      style: {
-        opacity: '1',
-        fill: '#ffffff',
-        fillOpacity: '1',
-        fillRule: 'evenodd',
-        stroke: '#000000',
-        strokeWidth: '1.5',
-        strokeLinecap: 'round',
-        strokeLinejoin: 'round',
-        strokeMiterlimit: '4',
-        strokeDasharray: 'none',
-        strokeOpacity: '1'
-      },
-      children: [/*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 9,39 L 36,39 L 36,36 L 9,36 L 9,39 z ",
-        style: {
-          strokeLinecap: 'butt'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 12,36 L 12,32 L 33,32 L 33,36 L 12,36 z ",
-        style: {
-          strokeLinecap: 'butt'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 11,14 L 11,9 L 15,9 L 15,11 L 20,11 L 20,9 L 25,9 L 25,11 L 30,11 L 30,9 L 34,9 L 34,14",
-        style: {
-          strokeLinecap: 'butt'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 34,14 L 31,17 L 14,17 L 11,14"
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 31,17 L 31,29.5 L 14,29.5 L 14,17",
-        style: {
-          strokeLinecap: 'butt',
-          strokeLinejoin: 'miter'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 31,29.5 L 32.5,32 L 12.5,32 L 14,29.5"
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 11,14 L 34,14",
-        style: {
-          fill: 'none',
-          stroke: '#000000',
-          strokeLinejoin: 'miter'
-        }
-      })]
-    })
-  }),
-  wN: /*#__PURE__*/jsxRuntime.jsx("svg", {
-    xmlns: "http://www.w3.org/2000/svg",
-    version: "1.1",
-    width: "45",
-    height: "45",
-    children: /*#__PURE__*/jsxRuntime.jsxs("g", {
-      style: {
-        opacity: '1',
-        fill: 'none',
-        fillOpacity: '1',
-        fillRule: 'evenodd',
-        stroke: '#000000',
-        strokeWidth: '1.5',
-        strokeLinecap: 'round',
-        strokeLinejoin: 'round',
-        strokeMiterlimit: '4',
-        strokeDasharray: 'none',
-        strokeOpacity: '1'
-      },
-      children: [/*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 22,10 C 32.5,11 38.5,18 38,39 L 15,39 C 15,30 25,32.5 23,18",
-        style: {
-          fill: '#ffffff',
-          stroke: '#000000'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 24,18 C 24.38,20.91 18.45,25.37 16,27 C 13,29 13.18,31.34 11,31 C 9.958,30.06 12.41,27.96 11,28 C 10,28 11.19,29.23 10,30 C 9,30 5.997,31 6,26 C 6,24 12,14 12,14 C 12,14 13.89,12.1 14,10.5 C 13.27,9.506 13.5,8.5 13.5,7.5 C 14.5,6.5 16.5,10 16.5,10 L 18.5,10 C 18.5,10 19.28,8.008 21,7 C 22,7 22,10 22,10",
-        style: {
-          fill: '#ffffff',
-          stroke: '#000000'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 9.5 25.5 A 0.5 0.5 0 1 1 8.5,25.5 A 0.5 0.5 0 1 1 9.5 25.5 z",
-        style: {
-          fill: '#000000',
-          stroke: '#000000'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 15 15.5 A 0.5 1.5 0 1 1  14,15.5 A 0.5 1.5 0 1 1  15 15.5 z",
-        transform: "matrix(0.866,0.5,-0.5,0.866,9.693,-5.173)",
-        style: {
-          fill: '#000000',
-          stroke: '#000000'
-        }
-      })]
-    })
-  }),
-  wB: /*#__PURE__*/jsxRuntime.jsx("svg", {
-    xmlns: "http://www.w3.org/2000/svg",
-    version: "1.1",
-    width: "45",
-    height: "45",
-    children: /*#__PURE__*/jsxRuntime.jsxs("g", {
-      style: {
-        opacity: '1',
-        fill: 'none',
-        fillRule: 'evenodd',
-        fillOpacity: '1',
-        stroke: '#000000',
-        strokeWidth: '1.5',
-        strokeLinecap: 'round',
-        strokeLinejoin: 'round',
-        strokeMiterlimit: '4',
-        strokeDasharray: 'none',
-        strokeOpacity: '1'
-      },
-      children: [/*#__PURE__*/jsxRuntime.jsxs("g", {
-        style: {
-          fill: '#ffffff',
-          stroke: '#000000',
-          strokeLinecap: 'butt'
-        },
-        children: [/*#__PURE__*/jsxRuntime.jsx("path", {
-          d: "M 9,36 C 12.39,35.03 19.11,36.43 22.5,34 C 25.89,36.43 32.61,35.03 36,36 C 36,36 37.65,36.54 39,38 C 38.32,38.97 37.35,38.99 36,38.5 C 32.61,37.53 25.89,38.96 22.5,37.5 C 19.11,38.96 12.39,37.53 9,38.5 C 7.65,38.99 6.68,38.97 6,38 C 7.35,36.54 9,36 9,36 z"
-        }), /*#__PURE__*/jsxRuntime.jsx("path", {
-          d: "M 15,32 C 17.5,34.5 27.5,34.5 30,32 C 30.5,30.5 30,30 30,30 C 30,27.5 27.5,26 27.5,26 C 33,24.5 33.5,14.5 22.5,10.5 C 11.5,14.5 12,24.5 17.5,26 C 17.5,26 15,27.5 15,30 C 15,30 14.5,30.5 15,32 z"
-        }), /*#__PURE__*/jsxRuntime.jsx("path", {
-          d: "M 25 8 A 2.5 2.5 0 1 1  20,8 A 2.5 2.5 0 1 1  25 8 z"
-        })]
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 17.5,26 L 27.5,26 M 15,30 L 30,30 M 22.5,15.5 L 22.5,20.5 M 20,18 L 25,18",
-        style: {
-          fill: 'none',
-          stroke: '#000000',
-          strokeLinejoin: 'miter'
-        }
-      })]
-    })
-  }),
-  wQ: /*#__PURE__*/jsxRuntime.jsx("svg", {
-    xmlns: "http://www.w3.org/2000/svg",
-    version: "1.1",
-    width: "45",
-    height: "45",
-    children: /*#__PURE__*/jsxRuntime.jsxs("g", {
-      style: {
-        fill: '#ffffff',
-        stroke: '#000000',
-        strokeWidth: '1.5',
-        strokeLinejoin: 'round'
-      },
-      children: [/*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 9,26 C 17.5,24.5 30,24.5 36,26 L 38.5,13.5 L 31,25 L 30.7,10.9 L 25.5,24.5 L 22.5,10 L 19.5,24.5 L 14.3,10.9 L 14,25 L 6.5,13.5 L 9,26 z"
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 9,26 C 9,28 10.5,28 11.5,30 C 12.5,31.5 12.5,31 12,33.5 C 10.5,34.5 11,36 11,36 C 9.5,37.5 11,38.5 11,38.5 C 17.5,39.5 27.5,39.5 34,38.5 C 34,38.5 35.5,37.5 34,36 C 34,36 34.5,34.5 33,33.5 C 32.5,31 32.5,31.5 33.5,30 C 34.5,28 36,28 36,26 C 27.5,24.5 17.5,24.5 9,26 z"
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 11.5,30 C 15,29 30,29 33.5,30",
-        style: {
-          fill: 'none'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 12,33.5 C 18,32.5 27,32.5 33,33.5",
-        style: {
-          fill: 'none'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("circle", {
-        cx: "6",
-        cy: "12",
-        r: "2"
-      }), /*#__PURE__*/jsxRuntime.jsx("circle", {
-        cx: "14",
-        cy: "9",
-        r: "2"
-      }), /*#__PURE__*/jsxRuntime.jsx("circle", {
-        cx: "22.5",
-        cy: "8",
-        r: "2"
-      }), /*#__PURE__*/jsxRuntime.jsx("circle", {
-        cx: "31",
-        cy: "9",
-        r: "2"
-      }), /*#__PURE__*/jsxRuntime.jsx("circle", {
-        cx: "39",
-        cy: "12",
-        r: "2"
-      })]
-    })
-  }),
-  wK: /*#__PURE__*/jsxRuntime.jsx("svg", {
-    xmlns: "http://www.w3.org/2000/svg",
-    version: "1.1",
-    width: "45",
-    height: "45",
-    children: /*#__PURE__*/jsxRuntime.jsxs("g", {
-      style: {
-        fill: 'none',
-        fillOpacity: '1',
-        fillRule: 'evenodd',
-        stroke: '#000000',
-        strokeWidth: '1.5',
-        strokeLinecap: 'round',
-        strokeLinejoin: 'round',
-        strokeMiterlimit: '4',
-        strokeDasharray: 'none',
-        strokeOpacity: '1'
-      },
-      children: [/*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 22.5,11.63 L 22.5,6",
-        style: {
-          fill: 'none',
-          stroke: '#000000',
-          strokeLinejoin: 'miter'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 20,8 L 25,8",
-        style: {
-          fill: 'none',
-          stroke: '#000000',
-          strokeLinejoin: 'miter'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 22.5,25 C 22.5,25 27,17.5 25.5,14.5 C 25.5,14.5 24.5,12 22.5,12 C 20.5,12 19.5,14.5 19.5,14.5 C 18,17.5 22.5,25 22.5,25",
-        style: {
-          fill: '#ffffff',
-          stroke: '#000000',
-          strokeLinecap: 'butt',
-          strokeLinejoin: 'miter'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 12.5,37 C 18,40.5 27,40.5 32.5,37 L 32.5,30 C 32.5,30 41.5,25.5 38.5,19.5 C 34.5,13 25,16 22.5,23.5 L 22.5,27 L 22.5,23.5 C 20,16 10.5,13 6.5,19.5 C 3.5,25.5 12.5,30 12.5,30 L 12.5,37",
-        style: {
-          fill: '#ffffff',
-          stroke: '#000000'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 12.5,30 C 18,27 27,27 32.5,30",
-        style: {
-          fill: 'none',
-          stroke: '#000000'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 12.5,33.5 C 18,30.5 27,30.5 32.5,33.5",
-        style: {
-          fill: 'none',
-          stroke: '#000000'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 12.5,37 C 18,34 27,34 32.5,37",
-        style: {
-          fill: 'none',
-          stroke: '#000000'
-        }
-      })]
-    })
-  }),
-  bP: /*#__PURE__*/jsxRuntime.jsx("svg", {
-    xmlns: "http://www.w3.org/2000/svg",
-    version: "1.1",
-    width: "45",
-    height: "45",
-    children: /*#__PURE__*/jsxRuntime.jsx("path", {
-      d: "m 22.5,9 c -2.21,0 -4,1.79 -4,4 0,0.89 0.29,1.71 0.78,2.38 C 17.33,16.5 16,18.59 16,21 c 0,2.03 0.94,3.84 2.41,5.03 C 15.41,27.09 11,31.58 11,39.5 H 34 C 34,31.58 29.59,27.09 26.59,26.03 28.06,24.84 29,23.03 29,21 29,18.59 27.67,16.5 25.72,15.38 26.21,14.71 26.5,13.89 26.5,13 c 0,-2.21 -1.79,-4 -4,-4 z",
-      style: {
-        opacity: '1',
-        fill: '#000000',
-        fillOpacity: '1',
-        fillRule: 'nonzero',
-        stroke: '#000000',
-        strokeWidth: '1.5',
-        strokeLinecap: 'round',
-        strokeLinejoin: 'miter',
-        strokeMiterlimit: '4',
-        strokeDasharray: 'none',
-        strokeOpacity: '1'
-      }
-    })
-  }),
-  bR: /*#__PURE__*/jsxRuntime.jsx("svg", {
-    xmlns: "http://www.w3.org/2000/svg",
-    version: "1.1",
-    width: "45",
-    height: "45",
-    children: /*#__PURE__*/jsxRuntime.jsxs("g", {
-      style: {
-        opacity: '1',
-        fill: '#000000',
-        fillOpacity: '1',
-        fillRule: 'evenodd',
-        stroke: '#000000',
-        strokeWidth: '1.5',
-        strokeLinecap: 'round',
-        strokeLinejoin: 'round',
-        strokeMiterlimit: '4',
-        strokeDasharray: 'none',
-        strokeOpacity: '1'
-      },
-      children: [/*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 9,39 L 36,39 L 36,36 L 9,36 L 9,39 z ",
-        style: {
-          strokeLinecap: 'butt'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 12.5,32 L 14,29.5 L 31,29.5 L 32.5,32 L 12.5,32 z ",
-        style: {
-          strokeLinecap: 'butt'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 12,36 L 12,32 L 33,32 L 33,36 L 12,36 z ",
-        style: {
-          strokeLinecap: 'butt'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 14,29.5 L 14,16.5 L 31,16.5 L 31,29.5 L 14,29.5 z ",
-        style: {
-          strokeLinecap: 'butt',
-          strokeLinejoin: 'miter'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 14,16.5 L 11,14 L 34,14 L 31,16.5 L 14,16.5 z ",
-        style: {
-          strokeLinecap: 'butt'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 11,14 L 11,9 L 15,9 L 15,11 L 20,11 L 20,9 L 25,9 L 25,11 L 30,11 L 30,9 L 34,9 L 34,14 L 11,14 z ",
-        style: {
-          strokeLinecap: 'butt'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 12,35.5 L 33,35.5 L 33,35.5",
-        style: {
-          fill: 'none',
-          stroke: '#ffffff',
-          strokeWidth: '1',
-          strokeLinejoin: 'miter'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 13,31.5 L 32,31.5",
-        style: {
-          fill: 'none',
-          stroke: '#ffffff',
-          strokeWidth: '1',
-          strokeLinejoin: 'miter'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 14,29.5 L 31,29.5",
-        style: {
-          fill: 'none',
-          stroke: '#ffffff',
-          strokeWidth: '1',
-          strokeLinejoin: 'miter'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 14,16.5 L 31,16.5",
-        style: {
-          fill: 'none',
-          stroke: '#ffffff',
-          strokeWidth: '1',
-          strokeLinejoin: 'miter'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 11,14 L 34,14",
-        style: {
-          fill: 'none',
-          stroke: '#ffffff',
-          strokeWidth: '1',
-          strokeLinejoin: 'miter'
-        }
-      })]
-    })
-  }),
-  bN: /*#__PURE__*/jsxRuntime.jsx("svg", {
-    xmlns: "http://www.w3.org/2000/svg",
-    version: "1.1",
-    width: "45",
-    height: "45",
-    children: /*#__PURE__*/jsxRuntime.jsxs("g", {
-      style: {
-        opacity: '1',
-        fill: 'none',
-        fillOpacity: '1',
-        fillRule: 'evenodd',
-        stroke: '#000000',
-        strokeWidth: '1.5',
-        strokeLinecap: 'round',
-        strokeLinejoin: 'round',
-        strokeMiterlimit: '4',
-        strokeDasharray: 'none',
-        strokeOpacity: '1'
-      },
-      children: [/*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 22,10 C 32.5,11 38.5,18 38,39 L 15,39 C 15,30 25,32.5 23,18",
-        style: {
-          fill: '#000000',
-          stroke: '#000000'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 24,18 C 24.38,20.91 18.45,25.37 16,27 C 13,29 13.18,31.34 11,31 C 9.958,30.06 12.41,27.96 11,28 C 10,28 11.19,29.23 10,30 C 9,30 5.997,31 6,26 C 6,24 12,14 12,14 C 12,14 13.89,12.1 14,10.5 C 13.27,9.506 13.5,8.5 13.5,7.5 C 14.5,6.5 16.5,10 16.5,10 L 18.5,10 C 18.5,10 19.28,8.008 21,7 C 22,7 22,10 22,10",
-        style: {
-          fill: '#000000',
-          stroke: '#000000'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 9.5 25.5 A 0.5 0.5 0 1 1 8.5,25.5 A 0.5 0.5 0 1 1 9.5 25.5 z",
-        style: {
-          fill: '#ffffff',
-          stroke: '#ffffff'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 15 15.5 A 0.5 1.5 0 1 1  14,15.5 A 0.5 1.5 0 1 1  15 15.5 z",
-        transform: "matrix(0.866,0.5,-0.5,0.866,9.693,-5.173)",
-        style: {
-          fill: '#ffffff',
-          stroke: '#ffffff'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 24.55,10.4 L 24.1,11.85 L 24.6,12 C 27.75,13 30.25,14.49 32.5,18.75 C 34.75,23.01 35.75,29.06 35.25,39 L 35.2,39.5 L 37.45,39.5 L 37.5,39 C 38,28.94 36.62,22.15 34.25,17.66 C 31.88,13.17 28.46,11.02 25.06,10.5 L 24.55,10.4 z ",
-        style: {
-          fill: '#ffffff',
-          stroke: 'none'
-        }
-      })]
-    })
-  }),
-  bB: /*#__PURE__*/jsxRuntime.jsx("svg", {
-    xmlns: "http://www.w3.org/2000/svg",
-    version: "1.1",
-    width: "45",
-    height: "45",
-    children: /*#__PURE__*/jsxRuntime.jsxs("g", {
-      style: {
-        opacity: '1',
-        fill: 'none',
-        fillRule: 'evenodd',
-        fillOpacity: '1',
-        stroke: '#000000',
-        strokeWidth: '1.5',
-        strokeLinecap: 'round',
-        strokeLinejoin: 'round',
-        strokeMiterlimit: '4',
-        strokeDasharray: 'none',
-        strokeOpacity: '1'
-      },
-      children: [/*#__PURE__*/jsxRuntime.jsxs("g", {
-        style: {
-          fill: '#000000',
-          stroke: '#000000',
-          strokeLinecap: 'butt'
-        },
-        children: [/*#__PURE__*/jsxRuntime.jsx("path", {
-          d: "M 9,36 C 12.39,35.03 19.11,36.43 22.5,34 C 25.89,36.43 32.61,35.03 36,36 C 36,36 37.65,36.54 39,38 C 38.32,38.97 37.35,38.99 36,38.5 C 32.61,37.53 25.89,38.96 22.5,37.5 C 19.11,38.96 12.39,37.53 9,38.5 C 7.65,38.99 6.68,38.97 6,38 C 7.35,36.54 9,36 9,36 z"
-        }), /*#__PURE__*/jsxRuntime.jsx("path", {
-          d: "M 15,32 C 17.5,34.5 27.5,34.5 30,32 C 30.5,30.5 30,30 30,30 C 30,27.5 27.5,26 27.5,26 C 33,24.5 33.5,14.5 22.5,10.5 C 11.5,14.5 12,24.5 17.5,26 C 17.5,26 15,27.5 15,30 C 15,30 14.5,30.5 15,32 z"
-        }), /*#__PURE__*/jsxRuntime.jsx("path", {
-          d: "M 25 8 A 2.5 2.5 0 1 1  20,8 A 2.5 2.5 0 1 1  25 8 z"
-        })]
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 17.5,26 L 27.5,26 M 15,30 L 30,30 M 22.5,15.5 L 22.5,20.5 M 20,18 L 25,18",
-        style: {
-          fill: 'none',
-          stroke: '#ffffff',
-          strokeLinejoin: 'miter'
-        }
-      })]
-    })
-  }),
-  bQ: /*#__PURE__*/jsxRuntime.jsx("svg", {
-    xmlns: "http://www.w3.org/2000/svg",
-    version: "1.1",
-    width: "45",
-    height: "45",
-    children: /*#__PURE__*/jsxRuntime.jsxs("g", {
-      style: {
-        fill: '#000000',
-        stroke: '#000000',
-        strokeWidth: '1.5',
-        strokeLinecap: 'round',
-        strokeLinejoin: 'round'
-      },
-      children: [/*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 9,26 C 17.5,24.5 30,24.5 36,26 L 38.5,13.5 L 31,25 L 30.7,10.9 L 25.5,24.5 L 22.5,10 L 19.5,24.5 L 14.3,10.9 L 14,25 L 6.5,13.5 L 9,26 z",
-        style: {
-          strokeLinecap: 'butt',
-          fill: '#000000'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "m 9,26 c 0,2 1.5,2 2.5,4 1,1.5 1,1 0.5,3.5 -1.5,1 -1,2.5 -1,2.5 -1.5,1.5 0,2.5 0,2.5 6.5,1 16.5,1 23,0 0,0 1.5,-1 0,-2.5 0,0 0.5,-1.5 -1,-2.5 -0.5,-2.5 -0.5,-2 0.5,-3.5 1,-2 2.5,-2 2.5,-4 -8.5,-1.5 -18.5,-1.5 -27,0 z"
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 11.5,30 C 15,29 30,29 33.5,30"
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "m 12,33.5 c 6,-1 15,-1 21,0"
-      }), /*#__PURE__*/jsxRuntime.jsx("circle", {
-        cx: "6",
-        cy: "12",
-        r: "2"
-      }), /*#__PURE__*/jsxRuntime.jsx("circle", {
-        cx: "14",
-        cy: "9",
-        r: "2"
-      }), /*#__PURE__*/jsxRuntime.jsx("circle", {
-        cx: "22.5",
-        cy: "8",
-        r: "2"
-      }), /*#__PURE__*/jsxRuntime.jsx("circle", {
-        cx: "31",
-        cy: "9",
-        r: "2"
-      }), /*#__PURE__*/jsxRuntime.jsx("circle", {
-        cx: "39",
-        cy: "12",
-        r: "2"
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 11,38.5 A 35,35 1 0 0 34,38.5",
-        style: {
-          fill: 'none',
-          stroke: '#000000',
-          strokeLinecap: 'butt'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsxs("g", {
-        style: {
-          fill: 'none',
-          stroke: '#ffffff'
-        },
-        children: [/*#__PURE__*/jsxRuntime.jsx("path", {
-          d: "M 11,29 A 35,35 1 0 1 34,29"
-        }), /*#__PURE__*/jsxRuntime.jsx("path", {
-          d: "M 12.5,31.5 L 32.5,31.5"
-        }), /*#__PURE__*/jsxRuntime.jsx("path", {
-          d: "M 11.5,34.5 A 35,35 1 0 0 33.5,34.5"
-        }), /*#__PURE__*/jsxRuntime.jsx("path", {
-          d: "M 10.5,37.5 A 35,35 1 0 0 34.5,37.5"
-        })]
-      })]
-    })
-  }),
-  bK: /*#__PURE__*/jsxRuntime.jsx("svg", {
-    xmlns: "http://www.w3.org/2000/svg",
-    version: "1.1",
-    width: "45",
-    height: "45",
-    children: /*#__PURE__*/jsxRuntime.jsxs("g", {
-      style: {
-        fill: 'none',
-        fillOpacity: '1',
-        fillRule: 'evenodd',
-        stroke: '#000000',
-        strokeWidth: '1.5',
-        strokeLinecap: 'round',
-        strokeLinejoin: 'round',
-        strokeMiterlimit: '4',
-        strokeDasharray: 'none',
-        strokeOpacity: '1'
-      },
-      children: [/*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 22.5,11.63 L 22.5,6",
-        style: {
-          fill: 'none',
-          stroke: '#000000',
-          strokeLinejoin: 'miter'
-        },
-        id: "path6570"
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 22.5,25 C 22.5,25 27,17.5 25.5,14.5 C 25.5,14.5 24.5,12 22.5,12 C 20.5,12 19.5,14.5 19.5,14.5 C 18,17.5 22.5,25 22.5,25",
-        style: {
-          fill: '#000000',
-          fillOpacity: '1',
-          strokeLinecap: 'butt',
-          strokeLinejoin: 'miter'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 12.5,37 C 18,40.5 27,40.5 32.5,37 L 32.5,30 C 32.5,30 41.5,25.5 38.5,19.5 C 34.5,13 25,16 22.5,23.5 L 22.5,27 L 22.5,23.5 C 20,16 10.5,13 6.5,19.5 C 3.5,25.5 12.5,30 12.5,30 L 12.5,37",
-        style: {
-          fill: '#000000',
-          stroke: '#000000'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 20,8 L 25,8",
-        style: {
-          fill: 'none',
-          stroke: '#000000',
-          strokeLinejoin: 'miter'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 32,29.5 C 32,29.5 40.5,25.5 38.03,19.85 C 34.15,14 25,18 22.5,24.5 L 22.5,26.6 L 22.5,24.5 C 20,18 10.85,14 6.97,19.85 C 4.5,25.5 13,29.5 13,29.5",
-        style: {
-          fill: 'none',
-          stroke: '#ffffff'
-        }
-      }), /*#__PURE__*/jsxRuntime.jsx("path", {
-        d: "M 12.5,30 C 18,27 27,27 32.5,30 M 12.5,33.5 C 18,30.5 27,30.5 32.5,33.5 M 12.5,37 C 18,34 27,34 32.5,37",
-        style: {
-          fill: 'none',
-          stroke: '#ffffff'
-        }
-      })]
-    })
-  })
-};
-
-const ChessboardContext = /*#__PURE__*/React__default["default"].createContext();
-const useChessboard = () => React.useContext(ChessboardContext);
-const ChessboardProvider = /*#__PURE__*/React.forwardRef(({
-  areArrowsAllowed,
-  arePiecesDraggable,
-  arePremovesAllowed,
-  boardOrientation,
-  boardWidth,
-  clearPremovesOnRightClick,
-  customArrows,
-  customArrowColor,
-  customBoardStyle,
-  customDarkSquareStyle,
-  customDropSquareStyle,
-  customLightSquareStyle,
-  customPieces,
-  customPremoveDarkSquareStyle,
-  customPremoveLightSquareStyle,
-  customSquareStyles,
-  dropOffBoardAction,
-  id,
-  isDraggablePiece,
-  getPositionObject,
-  onDragOverSquare,
-  onMouseOutSquare,
-  onMouseOverSquare,
-  onPieceClick,
-  onPieceDragBegin,
-  onPieceDragEnd,
-  onPieceDrop,
-  onSquareClick,
-  onSquareRightClick,
-  position,
-  showBoardNotation,
-  showSparePieces,
-  snapToCursor,
-  children
-}, ref) => {
-  // position stored and displayed on board
-  const [currentPosition, setCurrentPosition] = React.useState(convertPositionToObject(position)); // calculated differences between current and incoming positions
-
-  const [positionDifferences, setPositionDifferences] = React.useState({}); // colour of last piece moved to determine if premoving
-
-  const [lastPieceColour, setLastPieceColour] = React.useState(undefined); // current premoves
-
-  const [premoves, setPremoves] = React.useState([]); // ref used to access current value during timeouts (closures)
-
-  const premovesRef = React.useRef(premoves); // current right mouse down square
-
-  const [currentRightClickDown, setCurrentRightClickDown] = React.useState(); // current arrows
-
-  const [arrows, setArrows] = React.useState([]); // chess pieces/styling
-
-  const [chessPieces, setChessPieces] = React.useState({ ...defaultPieces,
-    ...customPieces
-  }); // whether the last move was a manual drop or not
-
-  const [manualDrop, setManualDrop] = React.useState(false); // if currently waiting for an animation to finish
-
-  const [transitioning, setTransitioning] = React.useState(false); // open clearPremoves() to allow user to call on undo/reset/whenever
-
-  React.useImperativeHandle(ref, () => ({
-    clearPremoves() {
-      clearPremoves();
-    }
-
-  })); // handle custom pieces change
-
-  React.useEffect(() => {
-    setChessPieces({ ...defaultPieces,
-      ...customPieces
-    });
-  }, [customPieces]); // handle external position change
-
-  React.useEffect(() => {
-    var _Object$keys, _Object$entries, _Object$entries$;
-
-    const newPosition = convertPositionToObject(position);
-    const differences = getPositionDifferences(currentPosition, newPosition);
-    const newPieceColour = ((_Object$keys = Object.keys(differences.added)) === null || _Object$keys === void 0 ? void 0 : _Object$keys.length) <= 2 ? (_Object$entries = Object.entries(differences.added)) === null || _Object$entries === void 0 ? void 0 : (_Object$entries$ = _Object$entries[0]) === null || _Object$entries$ === void 0 ? void 0 : _Object$entries$[1][0] : undefined; // external move has come in before animation is over
-    // cancel animation and immediately update position
-
-    if (transitioning) {
-      // setCurrentPosition(newPosition);
-      arePremovesAllowed && attemptPremove(newPieceColour);
-      setTransitioning(false);
-    } else {
-      // move was made using drag and drop
-      if (manualDrop) {
-        // setCurrentPosition(newPosition);
-        arePremovesAllowed && attemptPremove(newPieceColour);
-      } else {
-        // move was made by external position change
-        // if position === start then don't override newPieceColour
-        // needs isDifferentFromStart in scenario where premoves have been cleared upon board reset but first move is made by computer, the last move colour would need to be updated
-        if (isDifferentFromStart(newPosition) && lastPieceColour !== undefined) {
-          setLastPieceColour(newPieceColour);
-        } else {
-          // position === start, likely a board reset
-          setLastPieceColour(undefined);
-        }
-
-        setTransitioning(true);
-        console.log('set differences');
-        setPositionDifferences(differences); // animate external move
-
-        arePremovesAllowed && attemptPremove(newPieceColour);
-      }
-    } // reset manual drop, ready for next move to be made by user or external
-
-
-    setManualDrop(false); // inform latest position information
-
-    getPositionObject(newPosition); // clear arrows
-
-    clearArrows();
-  }, [position]); // handle external arrows change
-
-  React.useEffect(() => {
-    setArrows(customArrows);
-  }, [customArrows]); // handle drop position change
-
-  function handleSetPosition(sourceSq, targetSq, piece) {
-    // if dropped back down, don't do anything
-    if (sourceSq === targetSq) {
-      return;
-    }
-
-    clearArrows(); // if second move is made for same colour, or there are still premoves queued, then this move needs to be added to premove queue instead of played
-    // premoves length check for colour is added in because white could make 3 premoves, and then black responds to the first move (changing the last piece colour) and then white pre-moves again
-
-    if (arePremovesAllowed && transitioning || arePremovesAllowed && (lastPieceColour === piece[0] || premovesRef.current.filter(p => p.piece[0] === piece[0]).length > 0)) {
-      const oldPremoves = [...premovesRef.current];
-      oldPremoves.push({
-        sourceSq,
-        targetSq,
-        piece
-      });
-      premovesRef.current = oldPremoves;
-      setPremoves([...oldPremoves]);
-      return;
-    } // if transitioning, don't allow new drop
-
-
-    if (!arePremovesAllowed && transitioning) return;
-    const newOnDropPosition = { ...currentPosition
-    };
-    setManualDrop(true);
-    setLastPieceColour(piece[0]); // if onPieceDrop function provided, execute it, position must be updated externally and captured by useEffect above for this move to show on board
-
-    if (onPieceDrop.length) {
-      const isValidMove = onPieceDrop(sourceSq, targetSq, piece);
-      if (!isValidMove) clearPremoves();
-    } else {
-      // delete if dropping off board
-      if (dropOffBoardAction === 'trash' && !targetSq) {
-        delete newOnDropPosition[sourceSq];
-      } // delete source piece if not dropping from spare piece
-
-
-      if (sourceSq !== 'spare') {
-        delete newOnDropPosition[sourceSq];
-      } // add piece in new position
-
-
-      newOnDropPosition[targetSq] = piece; // setCurrentPosition(newOnDropPosition);
-    } // inform latest position information
-
-
-    getPositionObject(newOnDropPosition);
-  }
-
-  function attemptPremove(newPieceColour) {
-    if (premovesRef.current.length === 0) return; // get current value of premove as this is called in a timeout so value may have changed since timeout was set
-
-    const premove = premovesRef.current[0]; // if premove is a differing colour to last move made, then this move can be made
-
-    if (premove.piece[0] !== undefined && premove.piece[0] !== newPieceColour && onPieceDrop.length) {
-      setLastPieceColour(premove.piece[0]);
-      setManualDrop(true); // pre-move doesn't need animation
-
-      const isValidMove = onPieceDrop(premove.sourceSq, premove.targetSq, premove.piece); // premove was successful and can be removed from queue
-
-      if (isValidMove) {
-        const oldPremoves = [...premovesRef.current];
-        oldPremoves.shift();
-        premovesRef.current = oldPremoves;
-        setPremoves([...oldPremoves]);
-      } else {
-        // premove wasn't successful, clear premove queue
-        clearPremoves();
-      }
-    }
-  }
-
-  function clearPremoves(clearLastPieceColour = true) {
-    // don't clear when right clicking to clear, otherwise you won't be able to premove again before next go
-    if (clearLastPieceColour) setLastPieceColour(undefined);
-    premovesRef.current = [];
-    setPremoves([]);
-  }
-
-  function onRightClickDown(square) {
-    setCurrentRightClickDown(square);
-  }
-
-  function onRightClickUp(square) {
-    if (!areArrowsAllowed) return;
-
-    if (currentRightClickDown) {
-      // same square, don't draw an arrow, but do clear premoves and run onSquareRightClick
-      if (currentRightClickDown === square) {
-        setCurrentRightClickDown(null);
-        clearPremovesOnRightClick && clearPremoves(false);
-        onSquareRightClick(square);
-        return;
-      } // if arrow already exists then it needs to be removed
-
-
-      for (const i in arrows) {
-        if (arrows[i][0] === currentRightClickDown && arrows[i][1] === square) {
-          setArrows(oldArrows => {
-            const newArrows = [...oldArrows];
-            newArrows.splice(i, 1);
-            return newArrows;
-          });
-          return;
-        }
-      } // different square, draw an arrow
-
-
-      setArrows(oldArrows => [...oldArrows, [currentRightClickDown, square]]);
-    } else setCurrentRightClickDown(null);
-  }
-
-  function clearCurrentRightClickDown() {
-    setCurrentRightClickDown(null);
-  }
-
-  function clearArrows() {
-    setArrows([]);
-  }
-
-  const startTransition = React.useCallback(() => {
-    setTransitioning(true);
-  }, []);
-  const endTransition = React.useCallback(id => {
-    console.log('end transition');
-    setTransitioning(false);
-    const newPosition = convertPositionToObject(position);
-    setCurrentPosition(newPosition);
-  }, [position]);
-  return /*#__PURE__*/jsxRuntime.jsx(ChessboardContext.Provider, {
-    value: {
-      arePiecesDraggable,
-      arePremovesAllowed,
-      boardOrientation,
-      boardWidth,
-      customArrowColor,
-      customBoardStyle,
-      customDarkSquareStyle,
-      customDropSquareStyle,
-      customLightSquareStyle,
-      customPremoveDarkSquareStyle,
-      customPremoveLightSquareStyle,
-      customSquareStyles,
-      dropOffBoardAction,
-      id,
-      isDraggablePiece,
-      getPositionObject,
-      onDragOverSquare,
-      onMouseOutSquare,
-      onMouseOverSquare,
-      onPieceClick,
-      onPieceDragBegin,
-      onPieceDragEnd,
-      onPieceDrop,
-      onSquareClick,
-      onSquareRightClick,
-      showBoardNotation,
-      showSparePieces,
-      snapToCursor,
-      arrows,
-      chessPieces,
-      clearArrows,
-      clearCurrentRightClickDown,
-      clearPremoves,
-      currentPosition,
-      handleSetPosition,
-      lastPieceColour,
-      manualDrop,
-      onRightClickDown,
-      onRightClickUp,
-      positionDifferences,
-      premoves,
-      setChessPieces,
-      setCurrentPosition,
-      setManualDrop,
-      transitioning,
-      startTransition,
-      endTransition
-    },
-    children: children
-  });
-});
-
-function Notation({
-  row,
-  col
-}) {
-  const {
-    boardOrientation,
-    boardWidth,
-    customDarkSquareStyle,
-    customLightSquareStyle
-  } = useChessboard();
-  const whiteColor = customLightSquareStyle.backgroundColor;
-  const blackColor = customDarkSquareStyle.backgroundColor;
-  const isRow = col === 0;
-  const isColumn = row === 7;
-  const isBottomLeftSquare = isRow && isColumn;
-
-  function getRow() {
-    return boardOrientation === 'white' ? 8 - row : row + 1;
-  }
-
-  function getColumn() {
-    return boardOrientation === 'black' ? COLUMNS[7 - col] : COLUMNS[col];
-  }
-
-  function renderBottomLeft() {
-    return /*#__PURE__*/jsxRuntime.jsxs(jsxRuntime.Fragment, {
-      children: [/*#__PURE__*/jsxRuntime.jsx("div", {
-        style: { ...notationStyle,
-          ...{
-            color: whiteColor
-          },
-          ...numericStyle(boardWidth)
-        },
-        children: getRow()
-      }), /*#__PURE__*/jsxRuntime.jsx("div", {
-        style: { ...notationStyle,
-          ...{
-            color: whiteColor
-          },
-          ...alphaStyle(boardWidth)
-        },
-        children: getColumn()
-      })]
-    });
-  }
-
-  function renderLetters() {
-    return /*#__PURE__*/jsxRuntime.jsx("div", {
-      style: { ...notationStyle,
-        ...{
-          color: col % 2 !== 0 ? blackColor : whiteColor
-        },
-        ...alphaStyle(boardWidth)
-      },
-      children: getColumn()
-    });
-  }
-
-  function renderNumbers() {
-    return /*#__PURE__*/jsxRuntime.jsx("div", {
-      style: { ...notationStyle,
-        ...(boardOrientation === 'black' ? {
-          color: row % 2 === 0 ? blackColor : whiteColor
-        } : {
-          color: row % 2 === 0 ? blackColor : whiteColor
-        }),
-        ...numericStyle(boardWidth)
-      },
-      children: getRow()
-    });
-  }
-
-  if (isBottomLeftSquare) {
-    return renderBottomLeft();
-  }
-
-  if (isColumn) {
-    return renderLetters();
-  }
-
-  if (isRow) {
-    return renderNumbers();
-  }
-
-  return null;
-}
-
-const alphaStyle = width => ({
-  alignSelf: 'flex-end',
-  paddingLeft: width / 8 - width / 48,
-  fontSize: width / 48
-});
-
-const numericStyle = width => ({
-  alignSelf: 'flex-start',
-  paddingRight: width / 8 - width / 48,
-  fontSize: width / 48
-});
-
-const notationStyle = {
-  zIndex: 3,
-  position: 'absolute'
-};
-
 let updateQueue = makeQueue();
 
 const raf = fn => schedule(fn, updateQueue);
@@ -13839,6 +12565,927 @@ const host = createHost(primitives, {
 });
 const animated = host.animated;
 
+const defaultPieces = {
+  wP: /*#__PURE__*/jsxRuntime.jsx("svg", {
+    xmlns: "http://www.w3.org/2000/svg",
+    version: "1.1",
+    width: "45",
+    height: "45",
+    children: /*#__PURE__*/jsxRuntime.jsx("path", {
+      d: "m 22.5,9 c -2.21,0 -4,1.79 -4,4 0,0.89 0.29,1.71 0.78,2.38 C 17.33,16.5 16,18.59 16,21 c 0,2.03 0.94,3.84 2.41,5.03 C 15.41,27.09 11,31.58 11,39.5 H 34 C 34,31.58 29.59,27.09 26.59,26.03 28.06,24.84 29,23.03 29,21 29,18.59 27.67,16.5 25.72,15.38 26.21,14.71 26.5,13.89 26.5,13 c 0,-2.21 -1.79,-4 -4,-4 z",
+      style: {
+        opacity: '1',
+        fill: '#ffffff',
+        fillOpacity: '1',
+        fillRule: 'nonzero',
+        stroke: '#000000',
+        strokeWidth: '1.5',
+        strokeLinecap: 'round',
+        strokeLinejoin: 'miter',
+        strokeMiterlimit: '4',
+        strokeDasharray: 'none',
+        strokeOpacity: '1'
+      }
+    })
+  }),
+  wR: /*#__PURE__*/jsxRuntime.jsx("svg", {
+    xmlns: "http://www.w3.org/2000/svg",
+    version: "1.1",
+    width: "45",
+    height: "45",
+    children: /*#__PURE__*/jsxRuntime.jsxs("g", {
+      style: {
+        opacity: '1',
+        fill: '#ffffff',
+        fillOpacity: '1',
+        fillRule: 'evenodd',
+        stroke: '#000000',
+        strokeWidth: '1.5',
+        strokeLinecap: 'round',
+        strokeLinejoin: 'round',
+        strokeMiterlimit: '4',
+        strokeDasharray: 'none',
+        strokeOpacity: '1'
+      },
+      children: [/*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 9,39 L 36,39 L 36,36 L 9,36 L 9,39 z ",
+        style: {
+          strokeLinecap: 'butt'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 12,36 L 12,32 L 33,32 L 33,36 L 12,36 z ",
+        style: {
+          strokeLinecap: 'butt'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 11,14 L 11,9 L 15,9 L 15,11 L 20,11 L 20,9 L 25,9 L 25,11 L 30,11 L 30,9 L 34,9 L 34,14",
+        style: {
+          strokeLinecap: 'butt'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 34,14 L 31,17 L 14,17 L 11,14"
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 31,17 L 31,29.5 L 14,29.5 L 14,17",
+        style: {
+          strokeLinecap: 'butt',
+          strokeLinejoin: 'miter'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 31,29.5 L 32.5,32 L 12.5,32 L 14,29.5"
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 11,14 L 34,14",
+        style: {
+          fill: 'none',
+          stroke: '#000000',
+          strokeLinejoin: 'miter'
+        }
+      })]
+    })
+  }),
+  wN: /*#__PURE__*/jsxRuntime.jsx("svg", {
+    xmlns: "http://www.w3.org/2000/svg",
+    version: "1.1",
+    width: "45",
+    height: "45",
+    children: /*#__PURE__*/jsxRuntime.jsxs("g", {
+      style: {
+        opacity: '1',
+        fill: 'none',
+        fillOpacity: '1',
+        fillRule: 'evenodd',
+        stroke: '#000000',
+        strokeWidth: '1.5',
+        strokeLinecap: 'round',
+        strokeLinejoin: 'round',
+        strokeMiterlimit: '4',
+        strokeDasharray: 'none',
+        strokeOpacity: '1'
+      },
+      children: [/*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 22,10 C 32.5,11 38.5,18 38,39 L 15,39 C 15,30 25,32.5 23,18",
+        style: {
+          fill: '#ffffff',
+          stroke: '#000000'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 24,18 C 24.38,20.91 18.45,25.37 16,27 C 13,29 13.18,31.34 11,31 C 9.958,30.06 12.41,27.96 11,28 C 10,28 11.19,29.23 10,30 C 9,30 5.997,31 6,26 C 6,24 12,14 12,14 C 12,14 13.89,12.1 14,10.5 C 13.27,9.506 13.5,8.5 13.5,7.5 C 14.5,6.5 16.5,10 16.5,10 L 18.5,10 C 18.5,10 19.28,8.008 21,7 C 22,7 22,10 22,10",
+        style: {
+          fill: '#ffffff',
+          stroke: '#000000'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 9.5 25.5 A 0.5 0.5 0 1 1 8.5,25.5 A 0.5 0.5 0 1 1 9.5 25.5 z",
+        style: {
+          fill: '#000000',
+          stroke: '#000000'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 15 15.5 A 0.5 1.5 0 1 1  14,15.5 A 0.5 1.5 0 1 1  15 15.5 z",
+        transform: "matrix(0.866,0.5,-0.5,0.866,9.693,-5.173)",
+        style: {
+          fill: '#000000',
+          stroke: '#000000'
+        }
+      })]
+    })
+  }),
+  wB: /*#__PURE__*/jsxRuntime.jsx("svg", {
+    xmlns: "http://www.w3.org/2000/svg",
+    version: "1.1",
+    width: "45",
+    height: "45",
+    children: /*#__PURE__*/jsxRuntime.jsxs("g", {
+      style: {
+        opacity: '1',
+        fill: 'none',
+        fillRule: 'evenodd',
+        fillOpacity: '1',
+        stroke: '#000000',
+        strokeWidth: '1.5',
+        strokeLinecap: 'round',
+        strokeLinejoin: 'round',
+        strokeMiterlimit: '4',
+        strokeDasharray: 'none',
+        strokeOpacity: '1'
+      },
+      children: [/*#__PURE__*/jsxRuntime.jsxs("g", {
+        style: {
+          fill: '#ffffff',
+          stroke: '#000000',
+          strokeLinecap: 'butt'
+        },
+        children: [/*#__PURE__*/jsxRuntime.jsx("path", {
+          d: "M 9,36 C 12.39,35.03 19.11,36.43 22.5,34 C 25.89,36.43 32.61,35.03 36,36 C 36,36 37.65,36.54 39,38 C 38.32,38.97 37.35,38.99 36,38.5 C 32.61,37.53 25.89,38.96 22.5,37.5 C 19.11,38.96 12.39,37.53 9,38.5 C 7.65,38.99 6.68,38.97 6,38 C 7.35,36.54 9,36 9,36 z"
+        }), /*#__PURE__*/jsxRuntime.jsx("path", {
+          d: "M 15,32 C 17.5,34.5 27.5,34.5 30,32 C 30.5,30.5 30,30 30,30 C 30,27.5 27.5,26 27.5,26 C 33,24.5 33.5,14.5 22.5,10.5 C 11.5,14.5 12,24.5 17.5,26 C 17.5,26 15,27.5 15,30 C 15,30 14.5,30.5 15,32 z"
+        }), /*#__PURE__*/jsxRuntime.jsx("path", {
+          d: "M 25 8 A 2.5 2.5 0 1 1  20,8 A 2.5 2.5 0 1 1  25 8 z"
+        })]
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 17.5,26 L 27.5,26 M 15,30 L 30,30 M 22.5,15.5 L 22.5,20.5 M 20,18 L 25,18",
+        style: {
+          fill: 'none',
+          stroke: '#000000',
+          strokeLinejoin: 'miter'
+        }
+      })]
+    })
+  }),
+  wQ: /*#__PURE__*/jsxRuntime.jsx("svg", {
+    xmlns: "http://www.w3.org/2000/svg",
+    version: "1.1",
+    width: "45",
+    height: "45",
+    children: /*#__PURE__*/jsxRuntime.jsxs("g", {
+      style: {
+        fill: '#ffffff',
+        stroke: '#000000',
+        strokeWidth: '1.5',
+        strokeLinejoin: 'round'
+      },
+      children: [/*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 9,26 C 17.5,24.5 30,24.5 36,26 L 38.5,13.5 L 31,25 L 30.7,10.9 L 25.5,24.5 L 22.5,10 L 19.5,24.5 L 14.3,10.9 L 14,25 L 6.5,13.5 L 9,26 z"
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 9,26 C 9,28 10.5,28 11.5,30 C 12.5,31.5 12.5,31 12,33.5 C 10.5,34.5 11,36 11,36 C 9.5,37.5 11,38.5 11,38.5 C 17.5,39.5 27.5,39.5 34,38.5 C 34,38.5 35.5,37.5 34,36 C 34,36 34.5,34.5 33,33.5 C 32.5,31 32.5,31.5 33.5,30 C 34.5,28 36,28 36,26 C 27.5,24.5 17.5,24.5 9,26 z"
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 11.5,30 C 15,29 30,29 33.5,30",
+        style: {
+          fill: 'none'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 12,33.5 C 18,32.5 27,32.5 33,33.5",
+        style: {
+          fill: 'none'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("circle", {
+        cx: "6",
+        cy: "12",
+        r: "2"
+      }), /*#__PURE__*/jsxRuntime.jsx("circle", {
+        cx: "14",
+        cy: "9",
+        r: "2"
+      }), /*#__PURE__*/jsxRuntime.jsx("circle", {
+        cx: "22.5",
+        cy: "8",
+        r: "2"
+      }), /*#__PURE__*/jsxRuntime.jsx("circle", {
+        cx: "31",
+        cy: "9",
+        r: "2"
+      }), /*#__PURE__*/jsxRuntime.jsx("circle", {
+        cx: "39",
+        cy: "12",
+        r: "2"
+      })]
+    })
+  }),
+  wK: /*#__PURE__*/jsxRuntime.jsx("svg", {
+    xmlns: "http://www.w3.org/2000/svg",
+    version: "1.1",
+    width: "45",
+    height: "45",
+    children: /*#__PURE__*/jsxRuntime.jsxs("g", {
+      style: {
+        fill: 'none',
+        fillOpacity: '1',
+        fillRule: 'evenodd',
+        stroke: '#000000',
+        strokeWidth: '1.5',
+        strokeLinecap: 'round',
+        strokeLinejoin: 'round',
+        strokeMiterlimit: '4',
+        strokeDasharray: 'none',
+        strokeOpacity: '1'
+      },
+      children: [/*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 22.5,11.63 L 22.5,6",
+        style: {
+          fill: 'none',
+          stroke: '#000000',
+          strokeLinejoin: 'miter'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 20,8 L 25,8",
+        style: {
+          fill: 'none',
+          stroke: '#000000',
+          strokeLinejoin: 'miter'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 22.5,25 C 22.5,25 27,17.5 25.5,14.5 C 25.5,14.5 24.5,12 22.5,12 C 20.5,12 19.5,14.5 19.5,14.5 C 18,17.5 22.5,25 22.5,25",
+        style: {
+          fill: '#ffffff',
+          stroke: '#000000',
+          strokeLinecap: 'butt',
+          strokeLinejoin: 'miter'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 12.5,37 C 18,40.5 27,40.5 32.5,37 L 32.5,30 C 32.5,30 41.5,25.5 38.5,19.5 C 34.5,13 25,16 22.5,23.5 L 22.5,27 L 22.5,23.5 C 20,16 10.5,13 6.5,19.5 C 3.5,25.5 12.5,30 12.5,30 L 12.5,37",
+        style: {
+          fill: '#ffffff',
+          stroke: '#000000'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 12.5,30 C 18,27 27,27 32.5,30",
+        style: {
+          fill: 'none',
+          stroke: '#000000'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 12.5,33.5 C 18,30.5 27,30.5 32.5,33.5",
+        style: {
+          fill: 'none',
+          stroke: '#000000'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 12.5,37 C 18,34 27,34 32.5,37",
+        style: {
+          fill: 'none',
+          stroke: '#000000'
+        }
+      })]
+    })
+  }),
+  bP: /*#__PURE__*/jsxRuntime.jsx("svg", {
+    xmlns: "http://www.w3.org/2000/svg",
+    version: "1.1",
+    width: "45",
+    height: "45",
+    children: /*#__PURE__*/jsxRuntime.jsx("path", {
+      d: "m 22.5,9 c -2.21,0 -4,1.79 -4,4 0,0.89 0.29,1.71 0.78,2.38 C 17.33,16.5 16,18.59 16,21 c 0,2.03 0.94,3.84 2.41,5.03 C 15.41,27.09 11,31.58 11,39.5 H 34 C 34,31.58 29.59,27.09 26.59,26.03 28.06,24.84 29,23.03 29,21 29,18.59 27.67,16.5 25.72,15.38 26.21,14.71 26.5,13.89 26.5,13 c 0,-2.21 -1.79,-4 -4,-4 z",
+      style: {
+        opacity: '1',
+        fill: '#000000',
+        fillOpacity: '1',
+        fillRule: 'nonzero',
+        stroke: '#000000',
+        strokeWidth: '1.5',
+        strokeLinecap: 'round',
+        strokeLinejoin: 'miter',
+        strokeMiterlimit: '4',
+        strokeDasharray: 'none',
+        strokeOpacity: '1'
+      }
+    })
+  }),
+  bR: /*#__PURE__*/jsxRuntime.jsx("svg", {
+    xmlns: "http://www.w3.org/2000/svg",
+    version: "1.1",
+    width: "45",
+    height: "45",
+    children: /*#__PURE__*/jsxRuntime.jsxs("g", {
+      style: {
+        opacity: '1',
+        fill: '#000000',
+        fillOpacity: '1',
+        fillRule: 'evenodd',
+        stroke: '#000000',
+        strokeWidth: '1.5',
+        strokeLinecap: 'round',
+        strokeLinejoin: 'round',
+        strokeMiterlimit: '4',
+        strokeDasharray: 'none',
+        strokeOpacity: '1'
+      },
+      children: [/*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 9,39 L 36,39 L 36,36 L 9,36 L 9,39 z ",
+        style: {
+          strokeLinecap: 'butt'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 12.5,32 L 14,29.5 L 31,29.5 L 32.5,32 L 12.5,32 z ",
+        style: {
+          strokeLinecap: 'butt'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 12,36 L 12,32 L 33,32 L 33,36 L 12,36 z ",
+        style: {
+          strokeLinecap: 'butt'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 14,29.5 L 14,16.5 L 31,16.5 L 31,29.5 L 14,29.5 z ",
+        style: {
+          strokeLinecap: 'butt',
+          strokeLinejoin: 'miter'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 14,16.5 L 11,14 L 34,14 L 31,16.5 L 14,16.5 z ",
+        style: {
+          strokeLinecap: 'butt'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 11,14 L 11,9 L 15,9 L 15,11 L 20,11 L 20,9 L 25,9 L 25,11 L 30,11 L 30,9 L 34,9 L 34,14 L 11,14 z ",
+        style: {
+          strokeLinecap: 'butt'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 12,35.5 L 33,35.5 L 33,35.5",
+        style: {
+          fill: 'none',
+          stroke: '#ffffff',
+          strokeWidth: '1',
+          strokeLinejoin: 'miter'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 13,31.5 L 32,31.5",
+        style: {
+          fill: 'none',
+          stroke: '#ffffff',
+          strokeWidth: '1',
+          strokeLinejoin: 'miter'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 14,29.5 L 31,29.5",
+        style: {
+          fill: 'none',
+          stroke: '#ffffff',
+          strokeWidth: '1',
+          strokeLinejoin: 'miter'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 14,16.5 L 31,16.5",
+        style: {
+          fill: 'none',
+          stroke: '#ffffff',
+          strokeWidth: '1',
+          strokeLinejoin: 'miter'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 11,14 L 34,14",
+        style: {
+          fill: 'none',
+          stroke: '#ffffff',
+          strokeWidth: '1',
+          strokeLinejoin: 'miter'
+        }
+      })]
+    })
+  }),
+  bN: /*#__PURE__*/jsxRuntime.jsx("svg", {
+    xmlns: "http://www.w3.org/2000/svg",
+    version: "1.1",
+    width: "45",
+    height: "45",
+    children: /*#__PURE__*/jsxRuntime.jsxs("g", {
+      style: {
+        opacity: '1',
+        fill: 'none',
+        fillOpacity: '1',
+        fillRule: 'evenodd',
+        stroke: '#000000',
+        strokeWidth: '1.5',
+        strokeLinecap: 'round',
+        strokeLinejoin: 'round',
+        strokeMiterlimit: '4',
+        strokeDasharray: 'none',
+        strokeOpacity: '1'
+      },
+      children: [/*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 22,10 C 32.5,11 38.5,18 38,39 L 15,39 C 15,30 25,32.5 23,18",
+        style: {
+          fill: '#000000',
+          stroke: '#000000'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 24,18 C 24.38,20.91 18.45,25.37 16,27 C 13,29 13.18,31.34 11,31 C 9.958,30.06 12.41,27.96 11,28 C 10,28 11.19,29.23 10,30 C 9,30 5.997,31 6,26 C 6,24 12,14 12,14 C 12,14 13.89,12.1 14,10.5 C 13.27,9.506 13.5,8.5 13.5,7.5 C 14.5,6.5 16.5,10 16.5,10 L 18.5,10 C 18.5,10 19.28,8.008 21,7 C 22,7 22,10 22,10",
+        style: {
+          fill: '#000000',
+          stroke: '#000000'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 9.5 25.5 A 0.5 0.5 0 1 1 8.5,25.5 A 0.5 0.5 0 1 1 9.5 25.5 z",
+        style: {
+          fill: '#ffffff',
+          stroke: '#ffffff'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 15 15.5 A 0.5 1.5 0 1 1  14,15.5 A 0.5 1.5 0 1 1  15 15.5 z",
+        transform: "matrix(0.866,0.5,-0.5,0.866,9.693,-5.173)",
+        style: {
+          fill: '#ffffff',
+          stroke: '#ffffff'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 24.55,10.4 L 24.1,11.85 L 24.6,12 C 27.75,13 30.25,14.49 32.5,18.75 C 34.75,23.01 35.75,29.06 35.25,39 L 35.2,39.5 L 37.45,39.5 L 37.5,39 C 38,28.94 36.62,22.15 34.25,17.66 C 31.88,13.17 28.46,11.02 25.06,10.5 L 24.55,10.4 z ",
+        style: {
+          fill: '#ffffff',
+          stroke: 'none'
+        }
+      })]
+    })
+  }),
+  bB: /*#__PURE__*/jsxRuntime.jsx("svg", {
+    xmlns: "http://www.w3.org/2000/svg",
+    version: "1.1",
+    width: "45",
+    height: "45",
+    children: /*#__PURE__*/jsxRuntime.jsxs("g", {
+      style: {
+        opacity: '1',
+        fill: 'none',
+        fillRule: 'evenodd',
+        fillOpacity: '1',
+        stroke: '#000000',
+        strokeWidth: '1.5',
+        strokeLinecap: 'round',
+        strokeLinejoin: 'round',
+        strokeMiterlimit: '4',
+        strokeDasharray: 'none',
+        strokeOpacity: '1'
+      },
+      children: [/*#__PURE__*/jsxRuntime.jsxs("g", {
+        style: {
+          fill: '#000000',
+          stroke: '#000000',
+          strokeLinecap: 'butt'
+        },
+        children: [/*#__PURE__*/jsxRuntime.jsx("path", {
+          d: "M 9,36 C 12.39,35.03 19.11,36.43 22.5,34 C 25.89,36.43 32.61,35.03 36,36 C 36,36 37.65,36.54 39,38 C 38.32,38.97 37.35,38.99 36,38.5 C 32.61,37.53 25.89,38.96 22.5,37.5 C 19.11,38.96 12.39,37.53 9,38.5 C 7.65,38.99 6.68,38.97 6,38 C 7.35,36.54 9,36 9,36 z"
+        }), /*#__PURE__*/jsxRuntime.jsx("path", {
+          d: "M 15,32 C 17.5,34.5 27.5,34.5 30,32 C 30.5,30.5 30,30 30,30 C 30,27.5 27.5,26 27.5,26 C 33,24.5 33.5,14.5 22.5,10.5 C 11.5,14.5 12,24.5 17.5,26 C 17.5,26 15,27.5 15,30 C 15,30 14.5,30.5 15,32 z"
+        }), /*#__PURE__*/jsxRuntime.jsx("path", {
+          d: "M 25 8 A 2.5 2.5 0 1 1  20,8 A 2.5 2.5 0 1 1  25 8 z"
+        })]
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 17.5,26 L 27.5,26 M 15,30 L 30,30 M 22.5,15.5 L 22.5,20.5 M 20,18 L 25,18",
+        style: {
+          fill: 'none',
+          stroke: '#ffffff',
+          strokeLinejoin: 'miter'
+        }
+      })]
+    })
+  }),
+  bQ: /*#__PURE__*/jsxRuntime.jsx("svg", {
+    xmlns: "http://www.w3.org/2000/svg",
+    version: "1.1",
+    width: "45",
+    height: "45",
+    children: /*#__PURE__*/jsxRuntime.jsxs("g", {
+      style: {
+        fill: '#000000',
+        stroke: '#000000',
+        strokeWidth: '1.5',
+        strokeLinecap: 'round',
+        strokeLinejoin: 'round'
+      },
+      children: [/*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 9,26 C 17.5,24.5 30,24.5 36,26 L 38.5,13.5 L 31,25 L 30.7,10.9 L 25.5,24.5 L 22.5,10 L 19.5,24.5 L 14.3,10.9 L 14,25 L 6.5,13.5 L 9,26 z",
+        style: {
+          strokeLinecap: 'butt',
+          fill: '#000000'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "m 9,26 c 0,2 1.5,2 2.5,4 1,1.5 1,1 0.5,3.5 -1.5,1 -1,2.5 -1,2.5 -1.5,1.5 0,2.5 0,2.5 6.5,1 16.5,1 23,0 0,0 1.5,-1 0,-2.5 0,0 0.5,-1.5 -1,-2.5 -0.5,-2.5 -0.5,-2 0.5,-3.5 1,-2 2.5,-2 2.5,-4 -8.5,-1.5 -18.5,-1.5 -27,0 z"
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 11.5,30 C 15,29 30,29 33.5,30"
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "m 12,33.5 c 6,-1 15,-1 21,0"
+      }), /*#__PURE__*/jsxRuntime.jsx("circle", {
+        cx: "6",
+        cy: "12",
+        r: "2"
+      }), /*#__PURE__*/jsxRuntime.jsx("circle", {
+        cx: "14",
+        cy: "9",
+        r: "2"
+      }), /*#__PURE__*/jsxRuntime.jsx("circle", {
+        cx: "22.5",
+        cy: "8",
+        r: "2"
+      }), /*#__PURE__*/jsxRuntime.jsx("circle", {
+        cx: "31",
+        cy: "9",
+        r: "2"
+      }), /*#__PURE__*/jsxRuntime.jsx("circle", {
+        cx: "39",
+        cy: "12",
+        r: "2"
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 11,38.5 A 35,35 1 0 0 34,38.5",
+        style: {
+          fill: 'none',
+          stroke: '#000000',
+          strokeLinecap: 'butt'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsxs("g", {
+        style: {
+          fill: 'none',
+          stroke: '#ffffff'
+        },
+        children: [/*#__PURE__*/jsxRuntime.jsx("path", {
+          d: "M 11,29 A 35,35 1 0 1 34,29"
+        }), /*#__PURE__*/jsxRuntime.jsx("path", {
+          d: "M 12.5,31.5 L 32.5,31.5"
+        }), /*#__PURE__*/jsxRuntime.jsx("path", {
+          d: "M 11.5,34.5 A 35,35 1 0 0 33.5,34.5"
+        }), /*#__PURE__*/jsxRuntime.jsx("path", {
+          d: "M 10.5,37.5 A 35,35 1 0 0 34.5,37.5"
+        })]
+      })]
+    })
+  }),
+  bK: /*#__PURE__*/jsxRuntime.jsx("svg", {
+    xmlns: "http://www.w3.org/2000/svg",
+    version: "1.1",
+    width: "45",
+    height: "45",
+    children: /*#__PURE__*/jsxRuntime.jsxs("g", {
+      style: {
+        fill: 'none',
+        fillOpacity: '1',
+        fillRule: 'evenodd',
+        stroke: '#000000',
+        strokeWidth: '1.5',
+        strokeLinecap: 'round',
+        strokeLinejoin: 'round',
+        strokeMiterlimit: '4',
+        strokeDasharray: 'none',
+        strokeOpacity: '1'
+      },
+      children: [/*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 22.5,11.63 L 22.5,6",
+        style: {
+          fill: 'none',
+          stroke: '#000000',
+          strokeLinejoin: 'miter'
+        },
+        id: "path6570"
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 22.5,25 C 22.5,25 27,17.5 25.5,14.5 C 25.5,14.5 24.5,12 22.5,12 C 20.5,12 19.5,14.5 19.5,14.5 C 18,17.5 22.5,25 22.5,25",
+        style: {
+          fill: '#000000',
+          fillOpacity: '1',
+          strokeLinecap: 'butt',
+          strokeLinejoin: 'miter'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 12.5,37 C 18,40.5 27,40.5 32.5,37 L 32.5,30 C 32.5,30 41.5,25.5 38.5,19.5 C 34.5,13 25,16 22.5,23.5 L 22.5,27 L 22.5,23.5 C 20,16 10.5,13 6.5,19.5 C 3.5,25.5 12.5,30 12.5,30 L 12.5,37",
+        style: {
+          fill: '#000000',
+          stroke: '#000000'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 20,8 L 25,8",
+        style: {
+          fill: 'none',
+          stroke: '#000000',
+          strokeLinejoin: 'miter'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 32,29.5 C 32,29.5 40.5,25.5 38.03,19.85 C 34.15,14 25,18 22.5,24.5 L 22.5,26.6 L 22.5,24.5 C 20,18 10.85,14 6.97,19.85 C 4.5,25.5 13,29.5 13,29.5",
+        style: {
+          fill: 'none',
+          stroke: '#ffffff'
+        }
+      }), /*#__PURE__*/jsxRuntime.jsx("path", {
+        d: "M 12.5,30 C 18,27 27,27 32.5,30 M 12.5,33.5 C 18,30.5 27,30.5 32.5,33.5 M 12.5,37 C 18,34 27,34 32.5,37",
+        style: {
+          fill: 'none',
+          stroke: '#ffffff'
+        }
+      })]
+    })
+  })
+};
+
+const COLUMNS = 'abcdefgh'.split('');
+const chessboardDefaultProps = {
+  animationDuration: 300,
+  arePiecesDraggable: true,
+  boardOrientation: 'white',
+  boardWidth: 560,
+  customBoardStyle: {},
+  customDarkSquareStyle: {
+    backgroundColor: '#B58863'
+  },
+  customDndBackend: undefined,
+  customDndBackendOptions: undefined,
+  customDropSquareStyle: {
+    boxShadow: 'inset 0 0 1px 6px rgba(255,255,255,0.75)'
+  },
+  customLightSquareStyle: {
+    backgroundColor: '#F0D9B5'
+  },
+  customPieces: {},
+  customSquareStyles: {},
+  dropOffBoardAction: 'snapback',
+  id: 0,
+  isDraggablePiece: () => true,
+  getPositionObject: () => {},
+  onDragOverSquare: () => {},
+  onMouseOutSquare: () => {},
+  onMouseOverSquare: () => {},
+  onMoveComplete: () => {},
+  onPieceClick: () => {},
+  onPieceDragBegin: () => {},
+  onPieceDragEnd: () => {},
+  onPieceDrop: () => true,
+  onSquareClick: () => {},
+  position: 'start',
+  showBoardNotation: true,
+  // showSparePieces: false,
+  snapToCursor: true
+};
+
+const getPositionDifferences = (currentPosition, newPosition) => {
+  const difference = {
+    removed: {},
+    added: {}
+  }; // removed from current
+
+  Object.keys(currentPosition).forEach(square => {
+    if (newPosition[square] !== currentPosition[square]) difference.removed[square] = currentPosition[square];
+  }); // added from new
+
+  Object.keys(newPosition).forEach(square => {
+    if (currentPosition[square] !== newPosition[square]) difference.added[square] = newPosition[square];
+  });
+  return difference;
+};
+
+function isString(s) {
+  return typeof s === 'string';
+}
+
+function convertPositionToObject(position) {
+  if (position === 'start') return fenToObj('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR');
+  if (validFen(position)) return fenToObj(position);
+  if (validPositionObject(position)) return position;
+  return {};
+}
+function fenToObj(fen) {
+  if (!validFen(fen)) return false; // cut off any move, castling, etc info from the end. we're only interested in position information
+
+  fen = fen.replace(/ .+$/, '');
+  const rows = fen.split('/');
+  const position = {};
+  let currentRow = 8;
+
+  for (let i = 0; i < 8; i++) {
+    const row = rows[i].split('');
+    let colIdx = 0; // loop through each character in the FEN section
+
+    for (let j = 0; j < row.length; j++) {
+      // number / empty squares
+      if (row[j].search(/[1-8]/) !== -1) {
+        const numEmptySquares = parseInt(row[j], 10);
+        colIdx = colIdx + numEmptySquares;
+      } else {
+        // piece
+        const square = COLUMNS[colIdx] + currentRow;
+        position[square] = fenToPieceCode(row[j]);
+        colIdx = colIdx + 1;
+      }
+    }
+
+    currentRow = currentRow - 1;
+  }
+
+  return position;
+}
+
+function expandFenEmptySquares(fen) {
+  return fen.replace(/8/g, '11111111').replace(/7/g, '1111111').replace(/6/g, '111111').replace(/5/g, '11111').replace(/4/g, '1111').replace(/3/g, '111').replace(/2/g, '11');
+}
+
+function validFen(fen) {
+  if (!isString(fen)) return false; // cut off any move, castling, etc info from the end. we're only interested in position information
+
+  fen = fen.replace(/ .+$/, ''); // expand the empty square numbers to just 1s
+
+  fen = expandFenEmptySquares(fen); // FEN should be 8 sections separated by slashes
+
+  const chunks = fen.split('/');
+  if (chunks.length !== 8) return false; // check each section
+
+  for (let i = 0; i < 8; i++) {
+    if (chunks[i].length !== 8 || chunks[i].search(/[^kqrnbpKQRNBP1]/) !== -1) {
+      return false;
+    }
+  }
+
+  return true;
+} // convert FEN piece code to bP, wK, etc
+
+function fenToPieceCode(piece) {
+  // black piece
+  if (piece.toLowerCase() === piece) {
+    return 'b' + piece.toUpperCase();
+  } // white piece
+
+
+  return 'w' + piece.toUpperCase();
+}
+
+function validSquare(square) {
+  return isString(square) && square.search(/^[a-h][1-8]$/) !== -1;
+}
+
+function validPieceCode(code) {
+  return isString(code) && code.search(/^[bw][KQRNBP]$/) !== -1;
+}
+
+function validPositionObject(pos) {
+  if (pos === null || typeof pos !== 'object') return false;
+
+  for (const i in pos) {
+    if (!pos[i]) continue;
+
+    if (!validSquare(i) || !validPieceCode(pos[i])) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+const ChessboardContext = /*#__PURE__*/React__default["default"].createContext();
+const useChessboard = () => React.useContext(ChessboardContext);
+const ChessboardProvider = /*#__PURE__*/React.forwardRef(({
+  arePiecesDraggable,
+  boardOrientation,
+  boardWidth,
+  customBoardStyle,
+  customDarkSquareStyle,
+  customDropSquareStyle,
+  customLightSquareStyle,
+  customPieces,
+  customSquareStyles,
+  dropOffBoardAction,
+  id,
+  isDraggablePiece,
+  getPositionObject,
+  onDragOverSquare,
+  onMouseOutSquare,
+  onMouseOverSquare,
+  onPieceClick,
+  onPieceDragBegin,
+  onPieceDragEnd,
+  onPieceDrop,
+  onMoveComplete,
+  onSquareClick,
+  position,
+  showSparePieces,
+  snapToCursor,
+  children
+}, ref) => {
+  // position stored and displayed on board
+  const [currentPosition, setCurrentPosition] = React.useState(convertPositionToObject(position)); // calculated differences between current and incoming positions
+
+  const [positionDifferences, setPositionDifferences] = React.useState({}); // chess pieces/styling
+
+  const chessPieces = React.useMemo(() => ({ ...defaultPieces,
+    ...customPieces
+  }), [defaultPieces, customPieces]); // whether the last move was a manual drop or not
+
+  const [manualDrop, setManualDrop] = React.useState(false); // if currently waiting for an animation to finish
+
+  const [transitioning, setTransitioning] = React.useState(false);
+  const completeMove = React.useCallback(position => {
+    // End the transition if there was one.
+    setTransitioning(false); // Get new position
+
+    let newPosition = position;
+
+    if (typeof position === 'string') {
+      newPosition = convertPositionToObject(position);
+    } // Callback function to let consumer react to the end of a move.
+
+
+    onMoveComplete(); // Apply new position.
+
+    setCurrentPosition(newPosition);
+  }, [position, currentPosition]); // handle external position change
+
+  React.useEffect(() => {
+    const newPosition = convertPositionToObject(position);
+    const differences = getPositionDifferences(currentPosition, newPosition); // external move has come in before animation is over
+    // or move was made using drag and drop
+
+    if (transitioning || manualDrop) {
+      completeMove(position);
+    } else {
+      // move was made by external position change
+      // prepare to animate external move by saving differences to state, but not
+      // yet updating position.
+      setTransitioning(true);
+      setPositionDifferences(differences);
+    } // reset manual drop, ready for next move to be made by user or external
+
+
+    setManualDrop(false); // inform latest position information
+
+    getPositionObject(newPosition);
+  }, [position]); // handle drop position change
+
+  function handleSetPosition(sourceSq, targetSq, piece) {
+    // if dropped back down, don't do anything
+    if (sourceSq === targetSq) {
+      return;
+    } // if transitioning, don't allow new drop
+
+
+    if (transitioning) return;
+    const newOnDropPosition = { ...currentPosition
+    };
+    setManualDrop(true); // if onPieceDrop function provided, execute it, position must be updated externally and captured by useEffect above for this move to show on board
+
+    if (onPieceDrop.length) {
+      const success = onPieceDrop(sourceSq, targetSq, piece);
+
+      if (success) {
+        onMoveComplete();
+      }
+    } else {
+      // add piece in new position
+      newOnDropPosition[targetSq] = piece; // Update board state
+
+      completeMove(newOnDropPosition);
+    } // inform latest position information
+
+
+    getPositionObject(newOnDropPosition);
+  }
+
+  return /*#__PURE__*/jsxRuntime.jsx(ChessboardContext.Provider, {
+    value: {
+      arePiecesDraggable,
+      boardOrientation,
+      boardWidth,
+      customBoardStyle,
+      customDarkSquareStyle,
+      customDropSquareStyle,
+      customLightSquareStyle,
+      customSquareStyles,
+      dropOffBoardAction,
+      id,
+      isDraggablePiece,
+      getPositionObject,
+      onDragOverSquare,
+      onMouseOutSquare,
+      onMouseOverSquare,
+      onPieceClick,
+      onPieceDragBegin,
+      onPieceDragEnd,
+      onPieceDrop,
+      onSquareClick,
+      showSparePieces,
+      snapToCursor,
+      chessPieces,
+      currentPosition,
+      handleSetPosition,
+      manualDrop,
+      positionDifferences,
+      setCurrentPosition,
+      setManualDrop,
+      completeMove
+    },
+    children: children
+  });
+});
+
 function getSquareCoordinates(squares, sourceSquare, targetSquare) {
   return {
     sourceSq: squares[sourceSquare],
@@ -13849,23 +13496,21 @@ function getSquareCoordinates(squares, sourceSquare, targetSquare) {
 function Piece({
   piece,
   square,
-  squares,
-  isPremovedPiece = false
+  squares
 }) {
   const {
     arePiecesDraggable,
-    arePremovesAllowed,
     boardWidth,
     id,
     isDraggablePiece,
     onPieceClick,
+    completeMove,
     onPieceDragBegin,
     onPieceDragEnd,
-    premoves,
     chessPieces,
     dropTarget,
     positionDifferences,
-    endTransition,
+    setTransitioning,
     currentPosition
   } = useChessboard();
   const [{
@@ -13895,19 +13540,7 @@ function Piece({
     dragPreview(getEmptyImage(), {
       captureDraggingState: true
     });
-  }, []); // hide piece on matching premoves
-
-  const isPremoved = React.useMemo(() => {
-    // if premoves aren't allowed, don't waste time on calculations
-    if (!arePremovesAllowed) return false; // side effect: if piece moves into pre-moved square, its hidden
-    // if there are any premove targets on this square, hide the piece underneath
-
-    if (!isPremovedPiece && premoves.find(p => p.targetSq === square)) return true; // if sourceSq === sq and piece matches then this piece has been pre-moved elsewhere?
-
-    if (premoves.find(p => p.sourceSq === square && p.piece === piece)) return true; // TODO: If a premoved piece returns to a premoved square, it will hide (e1, e2, e1)
-
-    return false;
-  }, [arePremovesAllowed, isPremovedPiece, premoves]); // new move has come in
+  }, []); // new move has come in
   // if waiting for animation, then animation has started and we can perform animation
   // we need to head towards where we need to go, we are the source, we are heading towards the target
 
@@ -13925,46 +13558,45 @@ function Piece({
 
     if (!positionDifferences.added) return defaults; // check if piece matches or if removed piece was a pawn and new square is on 1st or 8th rank (promotion)
 
-    const newSquare = Object.entries(positionDifferences.added).find(([s, p]) => p === removedPiece || (removedPiece === null || removedPiece === void 0 ? void 0 : removedPiece[1]) === 'P' && (s[1] === '1' || s[1] === '8')); // we can perform animation if our square was in removed, AND the matching piece is in added AND this isn't a premoved piece
+    const newSquare = Object.entries(positionDifferences.added).find(([s, p]) => {
+      const isPromotion = (removedPiece === null || removedPiece === void 0 ? void 0 : removedPiece[1]) === 'P' && (s[1] === '1' || s[1] === '8');
+      return p === removedPiece || isPromotion;
+    }); // perform animation if the piece moved.
 
-    if (removedPiece && newSquare && !isPremovedPiece) {
+    if (newSquare) {
       const {
         sourceSq,
         targetSq
       } = getSquareCoordinates(squares, square, newSquare[0]);
-
-      if (sourceSq && targetSq) {
-        return {
-          transform: `translate(${targetSq.x - sourceSq.x}px, ${targetSq.y - sourceSq.y}px)`,
-          zIndex: 6
-        };
-      }
+      return {
+        transform: `translate(${targetSq.x - sourceSq.x}px, ${targetSq.y - sourceSq.y}px)`,
+        zIndex: 6
+      };
     }
 
     return defaults;
-  }, [positionDifferences]);
-  ({
+  }, [positionDifferences, setTransitioning]);
+  const style = {
     zIndex,
     touchAction: 'none',
     opacity: isDragging ? 0 : 1,
-    display: isPremoved ? 'none' : 'unset',
     cursor: arePiecesDraggable && isDraggablePiece({
       piece,
       sourceSquare: square
     }) ? '-webkit-grab' : 'default'
-  });
+  };
   const props = useSpring({
     transform,
-    config: config.wobbly,
+    immediate: false,
+    config: config.molasses,
     onRest: () => {
-      console.log('end');
-      endTransition();
+      completeMove(currentPosition);
     }
   });
   return /*#__PURE__*/jsxRuntime.jsx(animated.div, {
     ref: arePiecesDraggable ? canDrag ? drag : null : null,
     onClick: () => onPieceClick(piece),
-    style: {
+    style: { ...style,
       transform: props.transform
     },
     children: typeof chessPieces[piece] === 'function' ? chessPieces[piece]({
@@ -13988,30 +13620,23 @@ function Square({
   square,
   squareColor,
   setSquares,
-  squareHasPremove,
   children
 }) {
   const squareRef = React.useRef();
   const {
     boardWidth,
     boardOrientation,
-    clearArrows,
     currentPosition,
     customBoardStyle,
     customDarkSquareStyle,
     customDropSquareStyle,
     customLightSquareStyle,
-    customPremoveDarkSquareStyle,
-    customPremoveLightSquareStyle,
-    customSquareStyles,
     handleSetPosition,
     lastPieceColour,
     onDragOverSquare,
     onMouseOutSquare,
     onMouseOverSquare,
     onPieceDrop,
-    onRightClickDown,
-    onRightClickUp,
     onSquareClick
   } = useChessboard();
   const [{
@@ -14037,7 +13662,6 @@ function Square({
   }, [boardWidth, boardOrientation]);
   const defaultSquareStyle = { ...borderRadius(customBoardStyle, square, boardOrientation),
     ...(squareColor === 'black' ? customDarkSquareStyle : customLightSquareStyle),
-    ...(squareHasPremove && (squareColor === 'black' ? customPremoveDarkSquareStyle : customPremoveLightSquareStyle)),
     ...(isOver && customDropSquareStyle)
   };
   return /*#__PURE__*/jsxRuntime.jsx("div", {
@@ -14055,16 +13679,9 @@ function Square({
       if (e.relatedTarget && e.currentTarget.contains(e.relatedTarget)) return;
       onMouseOutSquare(square);
     },
-    onMouseDown: e => {
-      if (e.button === 2) onRightClickDown(square);
-    },
-    onMouseUp: e => {
-      if (e.button === 2) onRightClickUp(square);
-    },
     onDragEnter: () => onDragOverSquare(square),
     onClick: () => {
       onSquareClick(square);
-      clearArrows();
     },
     onContextMenu: e => {
       e.preventDefault();
@@ -14072,8 +13689,7 @@ function Square({
     children: /*#__PURE__*/jsxRuntime.jsx("div", {
       ref: squareRef,
       style: { ...size(boardWidth),
-        ...center,
-        ...(!squareHasPremove && (customSquareStyles === null || customSquareStyles === void 0 ? void 0 : customSquareStyles[square]))
+        ...center
       },
       children: children
     })
@@ -14240,104 +13856,33 @@ function Board() {
   const boardRef = React.useRef();
   const [squares, setSquares] = React.useState({});
   const {
-    arrows,
-    boardOrientation,
     boardWidth,
-    clearCurrentRightClickDown,
-    customArrowColor,
-    showBoardNotation,
-    currentPosition,
-    premoves
+    currentPosition
   } = useChessboard();
-  React.useEffect(() => {
-    function handleClickOutside(event) {
-      if (boardRef.current && !boardRef.current.contains(event.target)) {
-        clearCurrentRightClickDown();
-      }
-    }
-
-    document.addEventListener('mouseup', handleClickOutside);
-    return () => {
-      document.removeEventListener('mouseup', handleClickOutside);
-    };
-  }, []);
-  return boardWidth ? /*#__PURE__*/jsxRuntime.jsxs("div", {
+  return boardWidth ? /*#__PURE__*/jsxRuntime.jsx("div", {
     ref: boardRef,
     style: {
       position: 'relative'
     },
-    children: [/*#__PURE__*/jsxRuntime.jsx(Squares, {
+    children: /*#__PURE__*/jsxRuntime.jsx(Squares, {
       children: ({
         square,
         squareColor,
         col,
         row
       }) => {
-        const squareHasPremove = premoves.find(p => p.sourceSq === square || p.targetSq === square);
-        const squareHasPremoveTarget = premoves.find(p => p.targetSq === square);
-        return /*#__PURE__*/jsxRuntime.jsxs(Square, {
+        return /*#__PURE__*/jsxRuntime.jsx(Square, {
           square: square,
           squareColor: squareColor,
           setSquares: setSquares,
-          squareHasPremove: squareHasPremove,
-          children: [currentPosition[square] && /*#__PURE__*/jsxRuntime.jsx(Piece, {
+          children: currentPosition[square] && /*#__PURE__*/jsxRuntime.jsx(Piece, {
             piece: currentPosition[square],
             square: square,
             squares: squares
-          }), squareHasPremoveTarget && /*#__PURE__*/jsxRuntime.jsx(Piece, {
-            isPremovedPiece: true,
-            piece: squareHasPremoveTarget.piece,
-            square: square,
-            squares: squares
-          }), showBoardNotation && /*#__PURE__*/jsxRuntime.jsx(Notation, {
-            row: row,
-            col: col
-          })]
+          })
         }, `${col}${row}`);
       }
-    }), /*#__PURE__*/jsxRuntime.jsx("svg", {
-      width: boardWidth,
-      height: boardWidth,
-      style: {
-        position: 'absolute',
-        top: '0',
-        left: '0',
-        pointerEvents: 'none',
-        zIndex: '10'
-      },
-      children: arrows.map(arrow => {
-        const from = getRelativeCoords(boardOrientation, boardWidth, arrow[0]);
-        const to = getRelativeCoords(boardOrientation, boardWidth, arrow[1]);
-        return /*#__PURE__*/jsxRuntime.jsxs(React.Fragment, {
-          children: [/*#__PURE__*/jsxRuntime.jsx("defs", {
-            children: /*#__PURE__*/jsxRuntime.jsx("marker", {
-              id: "arrowhead",
-              markerWidth: "2",
-              markerHeight: "2.5",
-              refX: "1.25",
-              refY: "1.25",
-              orient: "auto",
-              children: /*#__PURE__*/jsxRuntime.jsx("polygon", {
-                points: "0 0, 2 1.25, 0 2.5",
-                style: {
-                  fill: customArrowColor
-                }
-              })
-            })
-          }), /*#__PURE__*/jsxRuntime.jsx("line", {
-            x1: from.x,
-            y1: from.y,
-            x2: to.x,
-            y2: to.y,
-            style: {
-              stroke: customArrowColor,
-              strokeWidth: boardWidth / 36
-            },
-            markerEnd: "url(#arrowhead)"
-          })]
-        }, `${arrow[0]}-${arrow[1]}`);
-      })
-    })]
+    })
   }) : /*#__PURE__*/jsxRuntime.jsx(WhiteKing, {});
 }
 

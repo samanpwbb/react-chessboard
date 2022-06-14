@@ -41,10 +41,6 @@ export default function PlayVsRandom({ boardWidth }) {
 
     // illegal move
     if (move === null) return false;
-
-    // store timeout so it can be cleared on undo/reset so computer doesn't execute move
-    const newTimeout = setTimeout(makeRandomMove, 200);
-    setCurrentTimeout(newTimeout);
     return true;
   }
 
@@ -52,7 +48,13 @@ export default function PlayVsRandom({ boardWidth }) {
     <div>
       <Chessboard
         id="PlayVsRandom"
-        animationDuration={400}
+        onMoveComplete={() => {
+          // store timeout so it can be cleared on undo/reset so computer doesn't execute move
+          if (game.turn() === 'b') {
+            const newTimeout = setTimeout(makeRandomMove, 200);
+            setCurrentTimeout(newTimeout);
+          }
+        }}
         boardOrientation={boardOrientation}
         boardWidth={boardWidth}
         customArrows={arrows}

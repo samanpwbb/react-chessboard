@@ -3,28 +3,22 @@ import { useDrop } from 'react-dnd';
 
 import { useChessboard } from '../context/chessboard-context';
 
-export function Square({ square, squareColor, setSquares, squareHasPremove, children }) {
+export function Square({ square, squareColor, setSquares, children }) {
   const squareRef = useRef();
   const {
     boardWidth,
     boardOrientation,
-    clearArrows,
     currentPosition,
     customBoardStyle,
     customDarkSquareStyle,
     customDropSquareStyle,
     customLightSquareStyle,
-    customPremoveDarkSquareStyle,
-    customPremoveLightSquareStyle,
-    customSquareStyles,
     handleSetPosition,
     lastPieceColour,
     onDragOverSquare,
     onMouseOutSquare,
     onMouseOverSquare,
     onPieceDrop,
-    onRightClickDown,
-    onRightClickUp,
     onSquareClick
   } = useChessboard();
 
@@ -47,7 +41,6 @@ export function Square({ square, squareColor, setSquares, squareHasPremove, chil
   const defaultSquareStyle = {
     ...borderRadius(customBoardStyle, square, boardOrientation),
     ...(squareColor === 'black' ? customDarkSquareStyle : customLightSquareStyle),
-    ...(squareHasPremove && (squareColor === 'black' ? customPremoveDarkSquareStyle : customPremoveLightSquareStyle)),
     ...(isOver && customDropSquareStyle)
   };
 
@@ -67,16 +60,9 @@ export function Square({ square, squareColor, setSquares, squareHasPremove, chil
         if (e.relatedTarget && e.currentTarget.contains(e.relatedTarget)) return;
         onMouseOutSquare(square);
       }}
-      onMouseDown={(e) => {
-        if (e.button === 2) onRightClickDown(square);
-      }}
-      onMouseUp={(e) => {
-        if (e.button === 2) onRightClickUp(square);
-      }}
       onDragEnter={() => onDragOverSquare(square)}
       onClick={() => {
         onSquareClick(square);
-        clearArrows();
       }}
       onContextMenu={(e) => {
         e.preventDefault();
@@ -86,8 +72,7 @@ export function Square({ square, squareColor, setSquares, squareHasPremove, chil
         ref={squareRef}
         style={{
           ...size(boardWidth),
-          ...center,
-          ...(!squareHasPremove && customSquareStyles?.[square])
+          ...center
         }}
       >
         {children}
